@@ -1,0 +1,8 @@
+{
+  "name": "Lumina Pro: AI Brand Studio",
+  "description": "A world-class AI suite for business brand strategy, high-fidelity visual content generation, and real-time pitch coaching.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
