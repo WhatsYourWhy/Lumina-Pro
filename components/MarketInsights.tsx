@@ -29,8 +29,17 @@ const MarketInsights: React.FC<Props> = ({ brand }) => {
       });
 
       setAnalysis(response.text);
+      
+      // Correct extraction of grounding chunks
       const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
-      const extractedSources = chunks.filter((c: any) => c.web).map((c: any) => c.web);
+      const extractedSources: GroundingSource[] = [];
+      
+      chunks.forEach((chunk: any) => {
+        if (chunk.web) {
+          extractedSources.push({ web: chunk.web });
+        }
+      });
+      
       setSources(extractedSources);
     } catch (error) {
       console.error(error);
@@ -98,7 +107,7 @@ const MarketInsights: React.FC<Props> = ({ brand }) => {
             {sources.length > 0 ? sources.map((source, i) => (
               <a 
                 key={i} 
-                href={source.uri} 
+                href={source.web?.uri} 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="block glass p-4 rounded-2xl border-slate-800 hover:border-indigo-500/50 hover:bg-indigo-500/5 group transition-all"
@@ -107,10 +116,10 @@ const MarketInsights: React.FC<Props> = ({ brand }) => {
                   <span className="text-[10px] font-bold text-slate-500 uppercase">Resource {i+1}</span>
                   <ArrowUpRight size={14} className="text-slate-600 group-hover:text-indigo-400" />
                 </div>
-                <h4 className="text-xs font-semibold line-clamp-2 text-slate-300 group-hover:text-white">{source.title}</h4>
+                <h4 className="text-xs font-semibold line-clamp-2 text-slate-300 group-hover:text-white">{source.web?.title}</h4>
                 <div className="mt-3 flex items-center gap-1 text-[10px] text-slate-500 truncate">
                   <ExternalLink size={10} />
-                  {new URL(source.uri).hostname}
+                  {source.web?.uri ? new URL(source.web.uri).hostname : 'External Link'}
                 </div>
               </a>
             )) : (

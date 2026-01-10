@@ -20,7 +20,10 @@ import {
   Bookmark,
   History,
   Trash2,
-  ChevronRight
+  ChevronRight,
+  Columns,
+  X,
+  ArrowRightLeft
 } from 'lucide-react';
 
 interface Props {
@@ -56,6 +59,10 @@ const SupplyChainConsole: React.FC<Props> = ({ brand }) => {
   const [showMap, setShowMap] = useState(true);
   const [savedAnalyses, setSavedAnalyses] = useState<SavedAnalysis[]>([]);
   const [showHistory, setShowHistory] = useState(false);
+  
+  // Comparison State
+  const [selectedForComparison, setSelectedForComparison] = useState<string[]>([]);
+  const [showComparison, setShowComparison] = useState(false);
 
   // Load history from localStorage on mount
   useEffect(() => {
@@ -84,7 +91,6 @@ const SupplyChainConsole: React.FC<Props> = ({ brand }) => {
     const updated = [newAnalysis, ...savedAnalyses].slice(0, 10); // Keep last 10
     setSavedAnalyses(updated);
     localStorage.setItem('lumina_sc_history', JSON.stringify(updated));
-    alert("Analysis saved to local storage.");
   };
 
   const loadAnalysis = (analysis: SavedAnalysis) => {
@@ -100,6 +106,14 @@ const SupplyChainConsole: React.FC<Props> = ({ brand }) => {
     const updated = savedAnalyses.filter(a => a.id !== id);
     setSavedAnalyses(updated);
     localStorage.setItem('lumina_sc_history', JSON.stringify(updated));
+    setSelectedForComparison(prev => prev.filter(item => item !== id));
+  };
+
+  const toggleComparisonSelection = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedForComparison(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id].slice(0, 3)
+    );
   };
 
   const analyzeSupplyChain = async () => {
@@ -173,7 +187,7 @@ const SupplyChainConsole: React.FC<Props> = ({ brand }) => {
           <div className="flex gap-2 w-full sm:w-auto">
             <button 
               onClick={() => setShowHistory(!showHistory)}
-              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl border border-slate-700 flex items-center gap-2 text-xs font-bold"
+              className={`px-4 py-2 rounded-xl border flex items-center gap-2 text-xs font-bold transition-all ${showHistory ? 'bg-indigo-500 text-white border-indigo-500' : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'}`}
               title="View History"
             >
               <History size={14} />
@@ -230,10 +244,66 @@ const SupplyChainConsole: React.FC<Props> = ({ brand }) => {
       {/* Main Content Area */}
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6 overflow-hidden relative">
         
+        {/* Comparison Dashboard Overlay */}
+        {showComparison && (
+          <div className="absolute inset-0 z-[60] glass bg-slate-950/95 rounded-3xl p-6 lg:p-8 animate-in fade-in zoom-in-95 duration-300 flex flex-col">
+            <div className="flex justify-between items-center mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center">
+                   <ArrowRightLeft size={20} className="text-indigo-400" />
+                </div>
+                <h3 className="text-xl font-bold tracking-tight">Route Comparison Engine</h3>
+              </div>
+              <button onClick={() => setShowComparison(false)} className="p-2 hover:bg-slate-800 rounded-full transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6 overflow-x-auto pb-4 scrollbar-hide">
+              {savedAnalyses.filter(a => selectedForComparison.includes(a.id)).map((analysis) => (
+                <div key={analysis.id} className="glass bg-slate-900/40 border-slate-800 rounded-2xl flex flex-col p-6 min-w-[300px]">
+                  <div className="mb-6">
+                    <h4 className="text-lg font-bold text-indigo-400 truncate">{analysis.route}</h4>
+                    <p className="text-[10px] text-slate-500 uppercase tracking-widest">{new Date(analysis.timestamp).toLocaleDateString()}</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 mb-8">
+                    <div className="p-3 bg-slate-800/50 rounded-xl border border-slate-700">
+                      <p className="text-[9px] uppercase text-slate-500 font-bold mb-1">Alert Count</p>
+                      <p className="text-xl font-black text-amber-500">{analysis.disruptions.length}</p>
+                    </div>
+                    <div className="p-3 bg-slate-800/50 rounded-xl border border-slate-700">
+                      <p className="text-[9px] uppercase text-slate-500 font-bold mb-1">Hub Count</p>
+                      <p className="text-xl font-black text-indigo-400">{analysis.mapsLinks.length}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex-1 space-y-4 overflow-y-auto pr-1 scrollbar-hide">
+                    <div className="space-y-2">
+                       <p className="text-[10px] uppercase text-slate-500 font-bold flex items-center gap-2"><ShieldCheck size={12} /> Strategic Insight</p>
+                       <p className="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap line-clamp-[12]">{analysis.intelligence}</p>
+                    </div>
+                    
+                    <div className="space-y-2 pt-4 border-t border-slate-800">
+                       <p className="text-[10px] uppercase text-slate-500 font-bold">Top Threats</p>
+                       {analysis.disruptions.slice(0, 3).map((d, i) => (
+                         <div key={i} className="text-[10px] text-slate-400 flex items-start gap-2">
+                           <div className={`w-1 h-1 rounded-full mt-1.5 ${d.severity === 'high' ? 'bg-red-500' : 'bg-amber-500'}`} />
+                           <span className="flex-1">{d.title}</span>
+                         </div>
+                       ))}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* History Drawer Overlay */}
         {showHistory && (
-          <div className="absolute inset-0 z-50 glass bg-slate-950/90 rounded-3xl p-6 lg:p-10 animate-in fade-in slide-in-from-right-10 duration-300">
-            <div className="flex justify-between items-center mb-8">
+          <div className="absolute inset-0 z-50 glass bg-slate-950/90 rounded-3xl p-6 lg:p-10 animate-in fade-in slide-in-from-right-10 duration-300 flex flex-col">
+            <div className="flex justify-between items-center mb-8 shrink-0">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center">
                    <History size={20} className="text-indigo-400" />
@@ -243,37 +313,53 @@ const SupplyChainConsole: React.FC<Props> = ({ brand }) => {
                   <p className="text-xs text-slate-500">Access previous route signatures and risk profiles.</p>
                 </div>
               </div>
-              <button onClick={() => setShowHistory(false)} className="p-2 hover:bg-slate-800 rounded-full transition-colors">
-                <Maximize2 size={20} className="rotate-45" />
-              </button>
+              <div className="flex items-center gap-4">
+                {selectedForComparison.length >= 2 && (
+                  <button 
+                    onClick={() => setShowComparison(true)}
+                    className="px-6 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl font-bold text-xs flex items-center gap-2 shadow-lg shadow-indigo-500/20 animate-in zoom-in"
+                  >
+                    <ArrowRightLeft size={14} /> Compare {selectedForComparison.length} Routes
+                  </button>
+                )}
+                <button onClick={() => setShowHistory(false)} className="p-2 hover:bg-slate-800 rounded-full transition-colors text-slate-500">
+                  <X size={24} />
+                </button>
+              </div>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto max-h-[70%] pr-2">
-              {savedAnalyses.map((analysis) => (
-                <div 
-                  key={analysis.id} 
-                  onClick={() => loadAnalysis(analysis)}
-                  className="group p-5 bg-slate-900/50 border border-slate-800 rounded-2xl hover:border-indigo-500/50 cursor-pointer transition-all relative"
-                >
-                  <div className="flex justify-between items-start mb-3">
-                    <div className="p-2 bg-indigo-500/10 rounded-lg text-indigo-400">
-                      <Navigation size={16} />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto pb-6 pr-2 scrollbar-hide">
+              {savedAnalyses.map((analysis) => {
+                const isSelected = selectedForComparison.includes(analysis.id);
+                return (
+                  <div 
+                    key={analysis.id} 
+                    onClick={() => isSelected ? setSelectedForComparison(prev => prev.filter(i => i !== analysis.id)) : loadAnalysis(analysis)}
+                    className={`group p-5 bg-slate-900/50 border rounded-2xl cursor-pointer transition-all relative ${isSelected ? 'border-indigo-500 bg-indigo-500/5 shadow-lg shadow-indigo-500/10' : 'border-slate-800 hover:border-slate-600'}`}
+                  >
+                    <div className="flex justify-between items-start mb-3">
+                      <button 
+                        onClick={(e) => toggleComparisonSelection(analysis.id, e)}
+                        className={`px-2 py-1 rounded text-[9px] font-black uppercase transition-all ${isSelected ? 'bg-indigo-500 text-white' : 'bg-slate-800 text-slate-500 hover:text-slate-200'}`}
+                      >
+                        {isSelected ? 'Selected' : 'Compare'}
+                      </button>
+                      <button 
+                        onClick={(e) => deleteAnalysis(analysis.id, e)}
+                        className="p-1.5 opacity-0 group-hover:opacity-100 hover:text-red-500 text-slate-500 transition-all"
+                      >
+                        <Trash2 size={14} />
+                      </button>
                     </div>
-                    <button 
-                      onClick={(e) => deleteAnalysis(analysis.id, e)}
-                      className="p-1.5 opacity-0 group-hover:opacity-100 hover:text-red-500 text-slate-500 transition-all"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                    <h4 className="font-bold text-slate-200 truncate pr-6">{analysis.route}</h4>
+                    <p className="text-[10px] text-slate-500 mt-1">{new Date(analysis.timestamp).toLocaleString()}</p>
+                    <div className="mt-4 flex items-center gap-3 text-[10px] font-bold uppercase tracking-widest text-slate-600">
+                      <span className="flex items-center gap-1"><Zap size={10} className="text-amber-500" /> {analysis.disruptions.length} Alerts</span>
+                      <span className="flex items-center gap-1"><MapPin size={10} className="text-indigo-500" /> {analysis.mapsLinks.length} Hubs</span>
+                    </div>
                   </div>
-                  <h4 className="font-bold text-slate-200 truncate pr-6">{analysis.route}</h4>
-                  <p className="text-[10px] text-slate-500 mt-1">{new Date(analysis.timestamp).toLocaleString()}</p>
-                  <div className="mt-4 flex items-center gap-3 text-[10px] font-bold uppercase tracking-widest text-slate-600">
-                    <span className="flex items-center gap-1"><Zap size={10} className="text-amber-500" /> {analysis.disruptions.length} Alerts</span>
-                    <span className="flex items-center gap-1"><MapPin size={10} className="text-indigo-500" /> {analysis.mapsLinks.length} Hubs</span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
               {savedAnalyses.length === 0 && (
                 <div className="col-span-full py-20 flex flex-col items-center justify-center opacity-30 text-center gap-4">
                   <Bookmark size={48} />

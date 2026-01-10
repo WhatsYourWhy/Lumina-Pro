@@ -20,7 +20,6 @@ const PitchCoach: React.FC<Props> = ({ brand }) => {
   const nextStartTimeRef = useRef(0);
   const sourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
 
-  // PCM Encoder
   const encode = (bytes: Uint8Array) => {
     let binary = '';
     const len = bytes.byteLength;
@@ -30,7 +29,6 @@ const PitchCoach: React.FC<Props> = ({ brand }) => {
     return btoa(binary);
   };
 
-  // PCM Decoder
   const decode = (base64: string) => {
     const binaryString = atob(base64);
     const len = binaryString.length;
@@ -65,14 +63,17 @@ const PitchCoach: React.FC<Props> = ({ brand }) => {
       setError(null);
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       
-      // Initialize Contexts
       audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
       outputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
       
+      // Browsers require a user gesture to start AudioContext
+      if (audioContextRef.current.state === 'suspended') await audioContextRef.current.resume();
+      if (outputAudioContextRef.current.state === 'suspended') await outputAudioContextRef.current.resume();
+
       streamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true });
       
       const sessionPromise = ai.live.connect({
-        model: 'gemini-2.5-flash-native-audio-preview-09-2025',
+        model: 'gemini-2.5-flash-native-audio-preview-12-2025',
         callbacks: {
           onopen: () => {
             setIsLive(true);
@@ -100,7 +101,6 @@ const PitchCoach: React.FC<Props> = ({ brand }) => {
             scriptProcessor.connect(audioContextRef.current!.destination);
           },
           onmessage: async (message: LiveServerMessage) => {
-            // Audio Output Handling
             const base64Audio = message.serverContent?.modelTurn?.parts[0]?.inlineData?.data;
             if (base64Audio) {
               const ctx = outputAudioContextRef.current!;
@@ -115,7 +115,6 @@ const PitchCoach: React.FC<Props> = ({ brand }) => {
               sourcesRef.current.add(source);
             }
 
-            // Transcription Handling
             if (message.serverContent?.inputTranscription) {
               const text = message.serverContent.inputTranscription.text;
               setTranscription(prev => {
