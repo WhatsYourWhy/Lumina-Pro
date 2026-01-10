@@ -17,6 +17,14 @@
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: #475569; }
+        
+        @keyframes dash {
+          to { stroke-dashoffset: 1000; }
+        }
+        .animate-dash {
+          stroke-dasharray: 10;
+          animation: dash 60s linear infinite;
+        }
     </style>
 <script type="importmap">
 {

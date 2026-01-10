@@ -56,15 +56,15 @@ const StrategyBoard: React.FC<Props> = ({ brand, setBrand }) => {
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div className="glass p-8 rounded-3xl border-slate-800 flex flex-col gap-6">
+    <div className="space-y-6 lg:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+        <div className="glass p-6 lg:p-8 rounded-2xl lg:rounded-3xl border-slate-800 flex flex-col gap-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-indigo-500/20 flex items-center justify-center text-indigo-400">
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center text-indigo-400">
                 <Zap size={20} />
               </div>
-              <h2 className="text-xl font-bold">Project Nucleus</h2>
+              <h2 className="text-xl font-bold tracking-tight">Project Nucleus</h2>
             </div>
             {synced && <div className="text-[10px] font-bold text-emerald-400 uppercase bg-emerald-500/10 px-2 py-1 rounded-full border border-emerald-500/20">Synced</div>}
           </div>
@@ -75,13 +75,13 @@ const StrategyBoard: React.FC<Props> = ({ brand, setBrand }) => {
                 value={brand.name}
                 onChange={(e) => { setBrand({ ...brand, name: e.target.value }); setSynced(false); }}
                 placeholder="Company Name"
-                className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-sm"
               />
-              <button onClick={discoverBrand} disabled={syncing} className="px-4 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 rounded-xl border border-indigo-500/20 transition-all">
+              <button onClick={discoverBrand} disabled={syncing} className="px-4 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 rounded-xl border border-indigo-500/20 transition-all shrink-0">
                 {syncing ? <Loader2 size={16} className="animate-spin" /> : <Globe size={16} />}
               </button>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <input value={brand.industry} onChange={(e) => setBrand({ ...brand, industry: e.target.value })} placeholder="Industry" className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-sm" />
               <input value={brand.tone} onChange={(e) => setBrand({ ...brand, tone: e.target.value })} placeholder="Brand Tone" className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-sm" />
             </div>
@@ -90,28 +90,35 @@ const StrategyBoard: React.FC<Props> = ({ brand, setBrand }) => {
 
           <div className="grid grid-cols-2 gap-3 mt-4">
              <button onClick={() => generateConsultingFramework('SCOR')} className="py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 border border-slate-700">
-               <ShieldAlert size={14} /> SCOR Model
+               <ShieldAlert size={14} /> SCOR
              </button>
              <button onClick={() => generateConsultingFramework('SWOT')} className="py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 border border-slate-700">
-               <BarChart3 size={14} /> SWOT Analysis
+               <BarChart3 size={14} /> SWOT
              </button>
           </div>
         </div>
 
-        <div className="glass p-8 rounded-3xl border-slate-800 flex flex-col gap-6 min-h-[500px]">
+        <div className="glass p-6 lg:p-8 rounded-2xl lg:rounded-3xl border-slate-800 flex flex-col gap-6 min-h-[400px]">
           <div className="flex items-center gap-3 text-purple-400">
             <Compass size={20} />
-            <h2 className="text-xl font-bold">Framework Analysis</h2>
+            <h2 className="text-xl font-bold tracking-tight">Analysis</h2>
           </div>
 
           {strategy ? (
-            <div className="prose prose-invert prose-sm max-w-none text-slate-400 overflow-y-auto flex-1 pr-2">
-              <div className="whitespace-pre-wrap leading-relaxed">{strategy}</div>
+            <div className="prose prose-invert prose-sm max-w-none text-slate-400 overflow-y-auto flex-1 pr-1">
+              {loading ? (
+                <div className="flex flex-col items-center justify-center h-full py-12 gap-4">
+                  <Loader2 className="animate-spin text-indigo-400" size={32} />
+                  <p className="text-xs uppercase tracking-widest text-slate-500">Processing Insights</p>
+                </div>
+              ) : (
+                <div className="whitespace-pre-wrap leading-relaxed text-xs lg:text-sm">{strategy}</div>
+              )}
             </div>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-center opacity-30">
+            <div className="flex-1 flex flex-col items-center justify-center text-center opacity-30 py-12">
               <MessageSquare size={32} className="mb-4" />
-              <p className="text-sm">Select a framework to begin specialized analysis.</p>
+              <p className="text-xs lg:text-sm max-w-[200px] mx-auto">Generate a framework to begin specialized analysis.</p>
             </div>
           )}
         </div>
