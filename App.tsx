@@ -22,23 +22,28 @@ import PitchCoach from './components/PitchCoach';
 import Overview from './components/Overview';
 import SupplyChainConsole from './components/SupplyChainConsole';
 
+interface StrategicEntry {
+  type: string;
+  timestamp: string;
+  content: string;
+}
+
 const App: React.FC = () => {
   const [activeSection, setActiveSection] = useState<AppSection>(AppSection.OVERVIEW);
   
-  // Persistent Global State
   const [brand, setBrand] = useState<BrandProfile>(() => {
     const saved = localStorage.getItem('lumina_brand_profile');
     return saved ? JSON.parse(saved) : { name: '', industry: '', description: '', tone: '' };
   });
 
   const [globalIntel, setGlobalIntel] = useState<{
-    strategy: string | null;
+    strategyHistory: StrategicEntry[];
     marketAnalysis: string | null;
     contentDrafts: string[];
     logistics: string | null;
   }>(() => {
-    const saved = localStorage.getItem('lumina_global_intel');
-    return saved ? JSON.parse(saved) : { strategy: null, marketAnalysis: null, contentDrafts: [], logistics: null };
+    const saved = localStorage.getItem('lumina_global_intel_v2');
+    return saved ? JSON.parse(saved) : { strategyHistory: [], marketAnalysis: null, contentDrafts: [], logistics: null };
   });
 
   useEffect(() => {
@@ -46,20 +51,21 @@ const App: React.FC = () => {
   }, [brand]);
 
   useEffect(() => {
-    localStorage.setItem('lumina_global_intel', JSON.stringify(globalIntel));
+    localStorage.setItem('lumina_global_intel_v2', JSON.stringify(globalIntel));
   }, [globalIntel]);
-
-  useEffect(() => {
-    if (window.innerWidth < 1024) {
-      setIsSidebarOpen(false);
-    }
-  }, [activeSection]);
-
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const updateIntel = (key: keyof typeof globalIntel, value: any) => {
     setGlobalIntel(prev => ({ ...prev, [key]: value }));
   };
+
+  const addStrategyEntry = (entry: StrategicEntry) => {
+    setGlobalIntel(prev => ({
+      ...prev,
+      strategyHistory: [entry, ...prev.strategyHistory].slice(0, 10) // Keep last 10 deep dives
+    }));
+  };
+
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const navItems = [
     { id: AppSection.OVERVIEW, label: 'Engine Overview', icon: Activity },
@@ -103,12 +109,12 @@ const App: React.FC = () => {
         <div className="flex-1 overflow-y-auto p-4 lg:p-8 relative z-10 scrollbar-hide">
           <div className="max-w-7xl mx-auto h-full">
             {activeSection === AppSection.OVERVIEW && <Overview brand={brand} intel={globalIntel} onNavigate={setActiveSection} />}
-            {activeSection === AppSection.STRATEGY && <StrategyBoard brand={brand} setBrand={setBrand} strategy={globalIntel.strategy} setStrategy={(v) => updateIntel('strategy', v)} />}
+            {activeSection === AppSection.STRATEGY && <StrategyBoard brand={brand} setBrand={setBrand} history={globalIntel.strategyHistory} onNewEntry={addStrategyEntry} />}
             {activeSection === AppSection.SUPPLY_CHAIN && <SupplyChainConsole brand={brand} intel={globalIntel.logistics} setIntel={(v) => updateIntel('logistics', v)} />}
             {activeSection === AppSection.CONTENT && <ContentStudio brand={brand} savedPosts={globalIntel.contentDrafts} setSavedPosts={(v) => updateIntel('contentDrafts', v)} />}
             {activeSection === AppSection.VISUALS && <VisualStudio brand={brand} />}
             {activeSection === AppSection.MARKET && <MarketInsights brand={brand} analysis={globalIntel.marketAnalysis} setAnalysis={(v) => updateIntel('marketAnalysis', v)} />}
-            {activeSection === AppSection.PITCH && <PitchCoach brand={brand} context={globalIntel.strategy} />}
+            {activeSection === AppSection.PITCH && <PitchCoach brand={brand} context={globalIntel.strategyHistory.map(h => h.content).join('\n\n')} />}
           </div>
         </div>
       </main>
