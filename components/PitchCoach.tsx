@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
 import { BrandProfile } from '../types';
-import { Mic, MicOff, Play, Square, Volume2, User, Bot, AlertCircle } from 'lucide-react';
+import { Mic, MicOff, Play, Square, Volume2, User, Bot, AlertCircle, Loader2 } from 'lucide-react';
 
 interface Props {
   brand: BrandProfile;
@@ -10,6 +10,7 @@ interface Props {
 
 const PitchCoach: React.FC<Props> = ({ brand }) => {
   const [isLive, setIsLive] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
   const [transcription, setTranscription] = useState<{ role: 'user' | 'coach', text: string }[]>([]);
   const [error, setError] = useState<string | null>(null);
   
@@ -59,14 +60,15 @@ const PitchCoach: React.FC<Props> = ({ brand }) => {
   };
 
   const startLiveSession = async () => {
+    if (isStarting) return;
+    setIsStarting(true);
+    setError(null);
     try {
-      setError(null);
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       
       audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
       outputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
       
-      // Browsers require a user gesture to start AudioContext
       if (audioContextRef.current.state === 'suspended') await audioContextRef.current.resume();
       if (outputAudioContextRef.current.state === 'suspended') await outputAudioContextRef.current.resume();
 
@@ -77,10 +79,12 @@ const PitchCoach: React.FC<Props> = ({ brand }) => {
         callbacks: {
           onopen: () => {
             setIsLive(true);
+            setIsStarting(false);
             const source = audioContextRef.current!.createMediaStreamSource(streamRef.current!);
             const scriptProcessor = audioContextRef.current!.createScriptProcessor(4096, 1, 1);
             
             scriptProcessor.onaudioprocess = (e) => {
+              if (!isLive) return;
               const inputData = e.inputBuffer.getChannelData(0);
               const l = inputData.length;
               const int16 = new Int16Array(l);
@@ -93,7 +97,11 @@ const PitchCoach: React.FC<Props> = ({ brand }) => {
               };
               
               sessionPromise.then(session => {
-                session.sendRealtimeInput({ media: pcmBlob });
+                try {
+                  session.sendRealtimeInput({ media: pcmBlob });
+                } catch (sendErr) {
+                  console.warn("Realtime send failed", sendErr);
+                }
               });
             };
             
@@ -135,14 +143,23 @@ const PitchCoach: React.FC<Props> = ({ brand }) => {
                 return [...prev, { role: 'coach', text: text }];
               });
             }
+
+            if (message.serverContent?.interrupted) {
+              for (const source of sourcesRef.current) {
+                try { source.stop(); } catch {}
+              }
+              sourcesRef.current.clear();
+              nextStartTimeRef.current = 0;
+            }
           },
           onerror: (e) => {
             console.error('Live Error:', e);
-            setError("Session error. Please try again.");
+            setError("Internal connection error. Refreshing session...");
             stopLiveSession();
           },
           onclose: () => {
             setIsLive(false);
+            setIsStarting(false);
           }
         },
         config: {
@@ -150,8 +167,7 @@ const PitchCoach: React.FC<Props> = ({ brand }) => {
           speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Zephyr' } } },
           systemInstruction: `You are an expert pitch coach for ${brand.name}. 
           The user is practicing their business pitch for their ${brand.industry} company. 
-          Be encouraging, provide constructive criticism, and ask tough questions an investor might ask.
-          Company Mission: ${brand.description}.`,
+          Mission: ${brand.description}. Provide feedback on tone, clarity, and value proposition.`,
           inputAudioTranscription: {},
           outputAudioTranscription: {}
         }
@@ -160,13 +176,14 @@ const PitchCoach: React.FC<Props> = ({ brand }) => {
       sessionRef.current = await sessionPromise;
     } catch (err) {
       console.error(err);
-      setError("Could not start session. Check your microphone permissions.");
+      setIsStarting(false);
+      setError("Failed to initialize coaching session. Please verify microphone access.");
     }
   };
 
   const stopLiveSession = () => {
     if (sessionRef.current) {
-      sessionRef.current.close();
+      try { sessionRef.current.close(); } catch {}
       sessionRef.current = null;
     }
     if (streamRef.current) {
@@ -174,6 +191,7 @@ const PitchCoach: React.FC<Props> = ({ brand }) => {
       streamRef.current = null;
     }
     setIsLive(false);
+    setIsStarting(false);
   };
 
   useEffect(() => {
@@ -189,12 +207,14 @@ const PitchCoach: React.FC<Props> = ({ brand }) => {
         </div>
         <button 
           onClick={isLive ? stopLiveSession : startLiveSession}
+          disabled={isStarting}
           className={`
             w-full sm:w-auto px-6 py-3 lg:px-8 lg:py-4 rounded-xl lg:rounded-2xl font-bold flex items-center justify-center gap-3 transition-all active:scale-95 text-sm lg:text-base
             ${isLive ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20'}
+            ${isStarting ? 'opacity-70 cursor-wait' : ''}
           `}
         >
-          {isLive ? <><Square size={18} fill="currentColor" /> Stop</> : <><Play size={18} fill="currentColor" /> Start Practice</>}
+          {isStarting ? <Loader2 className="animate-spin" size={18} /> : isLive ? <><Square size={18} fill="currentColor" /> Stop Session</> : <><Play size={18} fill="currentColor" /> Start Practice</>}
         </button>
       </div>
 
@@ -214,16 +234,16 @@ const PitchCoach: React.FC<Props> = ({ brand }) => {
           
           <div className="relative z-10 space-y-6 lg:space-y-8 text-center">
             <div className={`
-              w-32 h-32 lg:w-40 lg:h-40 mx-auto rounded-full flex items-center justify-center transition-all duration-700
-              ${isLive ? 'bg-indigo-500 shadow-[0_0_80px_rgba(99,102,241,0.4)] scale-110' : 'bg-slate-800'}
+              w-32 h-32 lg:w-40 lg:h-40 mx-auto rounded-full flex items-center justify-center transition-all duration-700 border-2
+              ${isLive ? 'bg-indigo-500 border-indigo-400 shadow-[0_0_80px_rgba(99,102,241,0.3)] scale-110' : 'bg-slate-800 border-slate-700'}
             `}>
               {isLive ? <Mic size={48} className="text-white animate-pulse" /> : <MicOff size={48} className="text-slate-600" />}
             </div>
             
             <div className="space-y-2">
-              <h3 className="text-lg lg:text-xl font-bold">{isLive ? "Lumina is Listening..." : "Coach Offline"}</h3>
-              <p className="text-slate-500 text-xs lg:text-sm max-w-[240px] mx-auto">
-                {isLive ? "Speak naturally. Your coach will respond instantly." : "Hit Start to begin your training session."}
+              <h3 className="text-lg lg:text-xl font-bold tracking-tight">{isLive ? "Lumina is Mentoring..." : "Coach Standby"}</h3>
+              <p className="text-slate-500 text-xs lg:text-sm max-w-[240px] mx-auto leading-relaxed">
+                {isLive ? "Speak naturally. Your coach will respond to your pitch instantly." : "Synchronize your strategy and start the practice session."}
               </p>
             </div>
 
@@ -234,34 +254,34 @@ const PitchCoach: React.FC<Props> = ({ brand }) => {
                     <div key={i} className="w-1 bg-indigo-500 rounded-full animate-bounce" style={{ height: `${Math.random()*15+5}px`, animationDelay: `${i*0.1}s` }} />
                   ))}
                 </div>
-                <span className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest">Active</span>
+                <span className="text-[9px] font-black text-indigo-400 uppercase tracking-[0.2em]">Active Link</span>
               </div>
             )}
           </div>
         </div>
 
         <div className="glass rounded-2xl lg:rounded-3xl p-5 lg:p-6 flex flex-col border-slate-800 min-h-[300px] lg:h-full overflow-hidden">
-           <div className="flex items-center gap-2 mb-4 text-slate-500 text-[10px] font-bold uppercase tracking-widest">
+           <div className="flex items-center gap-2 mb-4 text-slate-500 text-[10px] font-black uppercase tracking-[0.2em]">
              <Volume2 size={14} />
-             Live Transcript
+             Session Log
            </div>
            
            <div className="flex-1 overflow-y-auto space-y-4 pr-1 scrollbar-hide">
              {transcription.length > 0 ? (
                transcription.map((entry, i) => (
                  <div key={i} className={`flex gap-3 animate-in fade-in slide-in-from-bottom-2 ${entry.role === 'coach' ? 'flex-row-reverse text-right' : ''}`}>
-                   <div className={`w-7 h-7 rounded-lg shrink-0 flex items-center justify-center ${entry.role === 'coach' ? 'bg-indigo-500 text-white' : 'bg-slate-700 text-slate-300'}`}>
-                     {entry.role === 'coach' ? <Bot size={14} /> : <User size={14} />}
+                   <div className={`w-8 h-8 rounded-lg shrink-0 flex items-center justify-center shadow-sm ${entry.role === 'coach' ? 'bg-indigo-600 text-white' : 'bg-slate-700 text-slate-300'}`}>
+                     {entry.role === 'coach' ? <Bot size={16} /> : <User size={16} />}
                    </div>
-                   <div className={`px-4 py-2.5 rounded-2xl text-[13px] max-w-[85%] ${entry.role === 'coach' ? 'bg-indigo-500/10 text-indigo-100' : 'bg-slate-800 text-slate-300'}`}>
+                   <div className={`px-4 py-3 rounded-2xl text-[13px] max-w-[85%] leading-relaxed ${entry.role === 'coach' ? 'bg-indigo-500/10 text-indigo-100 border border-indigo-500/10' : 'bg-slate-800 text-slate-300 border border-slate-700'}`}>
                      {entry.text}
                    </div>
                  </div>
                ))
              ) : (
-               <div className="h-full flex flex-col items-center justify-center text-center opacity-30 space-y-2 py-10">
-                 <Bot size={28} className="mb-2" />
-                 <p className="text-[10px] italic">Awaiting dialogue...</p>
+               <div className="h-full flex flex-col items-center justify-center text-center opacity-20 space-y-4 py-10 grayscale">
+                 <Bot size={40} />
+                 <p className="text-[10px] font-bold uppercase tracking-widest">Awaiting Audio Stream</p>
                </div>
              )}
            </div>

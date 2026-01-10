@@ -141,7 +141,7 @@ const App: React.FC = () => {
 
         <div className="flex-1 overflow-y-auto p-4 lg:p-8 relative z-10">
           <div className="max-w-7xl mx-auto h-full">
-            {activeSection === AppSection.OVERVIEW && <Overview brand={brand} />}
+            {activeSection === AppSection.OVERVIEW && <Overview brand={brand} onNavigate={setActiveSection} />}
             {activeSection === AppSection.STRATEGY && <StrategyBoard brand={brand} setBrand={setBrand} />}
             {activeSection === AppSection.SUPPLY_CHAIN && <SupplyChainConsole brand={brand} />}
             {activeSection === AppSection.CONTENT && <ContentStudio brand={brand} />}

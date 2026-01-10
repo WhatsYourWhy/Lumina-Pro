@@ -1,15 +1,17 @@
 
 import React from 'react';
-import { BrandProfile } from '../types';
+import { BrandProfile, AppSection } from '../types';
 import { Cpu, Zap, Globe, Sparkles, Truck, Mic2, ArrowRight, BarChart3 } from 'lucide-react';
 
 interface Props {
   brand: BrandProfile;
+  onNavigate?: (section: AppSection) => void;
 }
 
-const Overview: React.FC<Props> = ({ brand }) => {
+const Overview: React.FC<Props> = ({ brand, onNavigate }) => {
   const steps = [
     { 
+      id: AppSection.STRATEGY,
       title: 'Strategic Sync', 
       desc: 'Grounding the model in real company data and generating SCOR/SWOT frameworks.',
       icon: BarChart3,
@@ -18,6 +20,7 @@ const Overview: React.FC<Props> = ({ brand }) => {
       status: brand.name ? 'Complete' : 'Pending'
     },
     { 
+      id: AppSection.SUPPLY_CHAIN,
       title: 'SC Intelligence', 
       desc: 'Analyzing logistics routes and regional risks using Google Maps grounding.',
       icon: Truck,
@@ -26,6 +29,7 @@ const Overview: React.FC<Props> = ({ brand }) => {
       status: 'Ready'
     },
     { 
+      id: AppSection.CONTENT,
       title: 'Creative Studio', 
       desc: 'Generating multimodal assets: LinkedIn copy, visuals, and cinematic video.',
       icon: Sparkles,
@@ -34,6 +38,7 @@ const Overview: React.FC<Props> = ({ brand }) => {
       status: 'Ready'
     },
     { 
+      id: AppSection.PITCH,
       title: 'Voice Coach', 
       desc: 'Practicing complex consulting pitches with real-time AI feedback.',
       icon: Mic2,
@@ -57,7 +62,10 @@ const Overview: React.FC<Props> = ({ brand }) => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {steps.map((step, i) => (
-          <div key={i} className="glass p-8 rounded-3xl border-slate-800 flex flex-col gap-4 relative overflow-hidden group">
+          <div 
+            key={i} 
+            className="glass p-8 rounded-3xl border-slate-800 flex flex-col gap-4 relative overflow-hidden group transition-all"
+          >
             <div className={`absolute top-0 right-0 p-4 font-bold text-[10px] uppercase tracking-widest ${step.status === 'Complete' ? 'text-emerald-500' : 'text-slate-500'}`}>
               {step.status}
             </div>
@@ -68,9 +76,12 @@ const Overview: React.FC<Props> = ({ brand }) => {
               <h3 className="text-xl font-bold text-white">{step.title}</h3>
               <p className="text-slate-400 text-sm leading-relaxed">{step.desc}</p>
             </div>
-            <div className="mt-4 flex items-center gap-2 text-indigo-400 text-xs font-bold uppercase tracking-wider cursor-pointer hover:gap-3 transition-all">
+            <button 
+              onClick={() => onNavigate?.(step.id)}
+              className="mt-4 flex items-center gap-2 text-indigo-400 text-xs font-bold uppercase tracking-wider cursor-pointer hover:gap-3 transition-all w-fit active:scale-95"
+            >
               Launch Module <ArrowRight size={14} />
-            </div>
+            </button>
           </div>
         ))}
       </div>

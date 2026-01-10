@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { GoogleGenAI } from "@google/genai";
 import { BrandProfile } from '../types';
-import { ImageIcon, Video, Wand2, Download, Loader2, AlertCircle } from 'lucide-react';
+import { ImageIcon, Video, Wand2, Download, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 
 interface Props {
   brand: BrandProfile;
@@ -14,27 +14,32 @@ const VisualStudio: React.FC<Props> = ({ brand }) => {
   const [resultImage, setResultImage] = useState<string | null>(null);
   const [resultVideo, setResultVideo] = useState<string | null>(null);
   const [mode, setMode] = useState<'image' | 'video'>('image');
+  const [error, setError] = useState<string | null>(null);
 
   const generateImage = async () => {
     setLoading(true);
     setResultImage(null);
+    setError(null);
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const fullPrompt = `High quality professional photography for brand: ${brand.name}. ${prompt}. Aesthetic: Clean, premium, commercial. Industry: ${brand.industry}.`;
+      const sanitizedPrompt = prompt.trim().substring(0, 1000);
+      const fullPrompt = `High quality professional photography for brand: ${brand.name}. ${sanitizedPrompt}. Aesthetic: Clean, premium, commercial. Industry: ${brand.industry}.`;
+      
       const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash-image',
         contents: { parts: [{ text: fullPrompt }] },
         config: { imageConfig: { aspectRatio: "16:9" } }
       });
 
-      for (const part of response.candidates?.[0]?.content?.parts || []) {
-        if (part.inlineData) {
-          setResultImage(`data:image/png;base64,${part.inlineData.data}`);
-          break;
-        }
+      const imagePart = response.candidates?.[0]?.content?.parts.find(p => p.inlineData);
+      if (imagePart?.inlineData) {
+        setResultImage(`data:image/png;base64,${imagePart.inlineData.data}`);
+      } else {
+        throw new Error("No image data returned from model.");
       }
-    } catch (error) {
-      console.error(error);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "Failed to generate image. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -47,9 +52,11 @@ const VisualStudio: React.FC<Props> = ({ brand }) => {
     
     setLoading(true);
     setResultVideo(null);
+    setError(null);
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const fullPrompt = `Cinematic brand commercial for ${brand.name}. ${prompt}. 4k, professional lighting.`;
+      const sanitizedPrompt = prompt.trim().substring(0, 1000);
+      const fullPrompt = `Cinematic brand commercial for ${brand.name}. ${sanitizedPrompt}. 4k, professional lighting.`;
       
       let operation = await ai.models.generateVideos({
         model: 'veo-3.1-fast-generate-preview',
@@ -61,19 +68,33 @@ const VisualStudio: React.FC<Props> = ({ brand }) => {
         }
       });
 
-      while (!operation.done) {
+      // Poll with exponential backoff or steady interval
+      let attempts = 0;
+      while (!operation.done && attempts < 60) { // Max 10 mins
         await new Promise(resolve => setTimeout(resolve, 10000));
-        operation = await ai.operations.getVideosOperation({ operation: operation });
+        try {
+          operation = await ai.operations.getVideosOperation({ operation: operation });
+        } catch (pollErr) {
+          console.warn("Polling error, retrying...", pollErr);
+          // Don't throw, just wait for next cycle
+        }
+        attempts++;
       }
+
+      if (!operation.done) throw new Error("Video generation timed out.");
 
       const downloadLink = operation.response?.generatedVideos?.[0]?.video?.uri;
       if (downloadLink) {
         const videoResponse = await fetch(`${downloadLink}&key=${process.env.API_KEY}`);
+        if (!videoResponse.ok) throw new Error("Failed to fetch video file.");
         const blob = await videoResponse.blob();
         setResultVideo(URL.createObjectURL(blob));
+      } else {
+        throw new Error("Video URI missing from response.");
       }
-    } catch (error) {
-      console.error(error);
+    } catch (err: any) {
+      console.error(err);
+      setError("Internal error or timeout. This often happens during high demand for video models.");
     } finally {
       setLoading(false);
     }
@@ -109,6 +130,13 @@ const VisualStudio: React.FC<Props> = ({ brand }) => {
               />
             </div>
 
+            {error && (
+              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-[10px] text-red-400 flex items-start gap-2 animate-in fade-in">
+                <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                <span>{error}</span>
+              </div>
+            )}
+
             <button 
               onClick={mode === 'image' ? generateImage : generateVideo}
               disabled={loading || !prompt}
@@ -136,34 +164,34 @@ const VisualStudio: React.FC<Props> = ({ brand }) => {
               <div className="flex flex-col items-center gap-4 text-center px-6">
                 <div className="relative">
                   <div className="w-16 h-16 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin"></div>
-                  <Wand2 className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-indigo-500 animate-pulse" size={20} />
+                  <Wand2 className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-indigo-400 animate-pulse" size={20} />
                 </div>
                 <div className="space-y-1">
-                  <h3 className="text-lg font-bold">Lumina is processing...</h3>
-                  <p className="text-slate-500 text-[10px] max-w-[200px] mx-auto">{mode === 'image' ? 'Applying brand aesthetics.' : 'Simulating lighting and physics.'}</p>
+                  <h3 className="text-lg font-bold tracking-tight">Lumina is processing...</h3>
+                  <p className="text-slate-500 text-[10px] max-w-[200px] mx-auto tracking-wide">{mode === 'image' ? 'Applying brand aesthetics and lighting.' : 'Simulating cinematic physics and textures.'}</p>
                 </div>
               </div>
             ) : resultImage || resultVideo ? (
-              <div className="w-full h-full relative">
+              <div className="w-full h-full relative animate-in fade-in duration-500">
                 {resultImage && <img src={resultImage} alt="Asset" className="w-full h-full object-contain bg-black/20" />}
                 {resultVideo && <video src={resultVideo} controls autoPlay className="w-full h-full object-contain bg-black/20" />}
                 <div className="absolute top-3 right-3 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                    <a 
                     href={resultImage || resultVideo || '#'} 
                     download={`lumina-${mode}-asset`}
-                    className="p-2.5 bg-white/10 backdrop-blur-md hover:bg-white/20 rounded-full text-white"
+                    className="p-2.5 bg-white/10 backdrop-blur-md hover:bg-white/20 rounded-full text-white flex items-center gap-2 text-xs font-bold"
                    >
-                     <Download size={18} />
+                     <Download size={18} /> Download
                    </a>
                 </div>
               </div>
             ) : (
-              <div className="text-center space-y-3 opacity-30 px-6 py-12">
-                <div className="w-16 h-16 lg:w-20 lg:h-20 mx-auto rounded-full bg-slate-800 flex items-center justify-center">
+              <div className="text-center space-y-3 opacity-20 px-6 py-12 grayscale">
+                <div className="w-16 h-16 lg:w-20 lg:h-20 mx-auto rounded-full bg-slate-800 flex items-center justify-center border border-slate-700">
                    {mode === 'image' ? <ImageIcon size={32} /> : <Video size={32} />}
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold uppercase tracking-widest">Asset Preview</h3>
+                  <h3 className="text-sm font-bold uppercase tracking-[0.2em]">Asset Preview</h3>
                   <p className="text-xs">Select generate to see results.</p>
                 </div>
               </div>

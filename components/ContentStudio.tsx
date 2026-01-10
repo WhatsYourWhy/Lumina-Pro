@@ -34,7 +34,8 @@ const ContentStudio: React.FC<Props> = ({ brand }) => {
         
         Format the output clearly as separate posts.`,
         config: {
-          thinkingConfig: { thinkingBudget: 0 }
+          // Removed thinkingBudget: 0 to avoid "Budget 0 is invalid" error.
+          // The model will now use its optimal reasoning path for high-quality content.
         }
       });
       
