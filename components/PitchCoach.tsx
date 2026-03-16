@@ -1,7 +1,9 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
+import { LiveServerMessage, Modality } from '@google/genai';
+import { ai } from '../lib/api';
 import { BrandProfile } from '../types';
+import toast from 'react-hot-toast';
 import { Mic, MicOff, Play, Square, Volume2, User, Bot, AlertCircle, Loader2 } from 'lucide-react';
 
 interface Props {
@@ -65,7 +67,7 @@ const PitchCoach: React.FC<Props> = ({ brand, context }) => {
     setIsStarting(true);
     setError(null);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
       
       audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
       outputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
@@ -184,6 +186,7 @@ const PitchCoach: React.FC<Props> = ({ brand, context }) => {
       console.error(err);
       setIsStarting(false);
       setError("Failed to initialize coaching session. Please verify microphone access.");
+      toast.error("Microphone or session initialization failed.");
     }
   };
 

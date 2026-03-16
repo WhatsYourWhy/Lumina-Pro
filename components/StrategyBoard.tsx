@@ -1,7 +1,9 @@
 
 import React, { useState } from 'react';
-import { GoogleGenAI, Type } from "@google/genai";
+import { Type } from "@google/genai";
+import { ai } from '../lib/api';
 import { BrandProfile } from '../types';
+import toast from 'react-hot-toast';
 import { 
   Zap, 
   Target, 
@@ -36,7 +38,7 @@ const StrategyBoard: React.FC<Props> = ({ brand, setBrand, history, onNewEntry }
     setSyncing(true);
     setError(null);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
       const searchResponse = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: `Perform deep web research on the company "${brand.name}". Identify their primary industry, core business model, and brand tone.`,
@@ -64,6 +66,7 @@ const StrategyBoard: React.FC<Props> = ({ brand, setBrand, history, onNewEntry }
       setBrand({ ...brand, ...data });
     } catch (e) { 
       setError("Discovery phase failed. Please check company name or enter details manually.");
+      toast.error("Discovery phase failed.");
     } finally { 
       setSyncing(false); 
     }
@@ -78,7 +81,7 @@ const StrategyBoard: React.FC<Props> = ({ brand, setBrand, history, onNewEntry }
     setTempType(typeLabel);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
       const prompt = type === 'LENS' 
         ? `Perform an executive ${activeLens.toUpperCase()} analysis for ${brand.name}. Focus on specific operational leverage points in ${brand.industry}.`
         : `Generate a detailed ${type} framework for ${brand.name} within the ${brand.industry} sector. Be specific, data-driven, and critical.`;
@@ -104,6 +107,7 @@ const StrategyBoard: React.FC<Props> = ({ brand, setBrand, history, onNewEntry }
       setDisplayIndex(0);
     } catch (e: any) { 
       setError("Strategic synthesis interrupted. Check connectivity.");
+      toast.error("Strategic synthesis interrupted.");
     } finally { 
       setLoading(false); 
     }

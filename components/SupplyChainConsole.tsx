@@ -1,7 +1,8 @@
 
 import React, { useState } from 'react';
-import { GoogleGenAI } from "@google/genai";
+import { ai } from '../lib/api';
 import { BrandProfile, GroundingSource } from '../types';
+import toast from 'react-hot-toast';
 import { 
   Truck, 
   AlertTriangle, 
@@ -31,15 +32,16 @@ const SupplyChainConsole: React.FC<Props> = ({ brand, intel, setIntel }) => {
     setLoading(true);
     setIntel(null);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
       const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: `Analyze logistics and supply chain risks for: "${route}". Context: ${brand.name} in ${brand.industry}.`,
         config: { tools: [{ googleMaps: {} }, { googleSearch: {} }] }
       });
       setIntel(response.text);
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
+      toast.error("Failed to analyze supply chain logic.");
     } finally {
       setLoading(false);
     }
@@ -49,15 +51,16 @@ const SupplyChainConsole: React.FC<Props> = ({ brand, intel, setIntel }) => {
     if (!route) return;
     setMonitoring(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: `Find CURRENT disruptions for "${route}". Return JSON array of objects with keys: title, summary, severity.`,
         config: { tools: [{ googleSearch: {} }], responseMimeType: "application/json" }
       });
       setDisruptions(JSON.parse(response.text));
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
+      toast.error("Failed to scan live alerts.");
     } finally {
       setMonitoring(false);
     }

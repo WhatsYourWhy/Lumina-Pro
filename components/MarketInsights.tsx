@@ -1,7 +1,8 @@
 
 import React, { useState } from 'react';
-import { GoogleGenAI } from "@google/genai";
+import { ai } from '../lib/api';
 import { BrandProfile, GroundingSource } from '../types';
+import toast from 'react-hot-toast';
 import { Search, Globe, ExternalLink, Loader2, ArrowUpRight, HelpCircle, Lightbulb } from 'lucide-react';
 
 interface Props {
@@ -20,7 +21,7 @@ const MarketInsights: React.FC<Props> = ({ brand, analysis, setAnalysis }) => {
     setLoading(true);
     setAnalysis(null);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: query,
@@ -40,8 +41,9 @@ const MarketInsights: React.FC<Props> = ({ brand, analysis, setAnalysis }) => {
         config: { responseMimeType: "application/json" }
       });
       setRabbitHoles(JSON.parse(rabbitResponse.text));
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
+      toast.error('Failed to analyze market. ' + (error.message || ''));
     } finally {
       setLoading(false);
     }

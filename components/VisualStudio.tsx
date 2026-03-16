@@ -1,7 +1,8 @@
 
 import React, { useState } from 'react';
-import { GoogleGenAI } from "@google/genai";
+import { ai } from '../lib/api';
 import { BrandProfile } from '../types';
+import toast from 'react-hot-toast';
 import { ImageIcon, Video, Wand2, Download, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 
 interface Props {
@@ -21,7 +22,7 @@ const VisualStudio: React.FC<Props> = ({ brand }) => {
     setResultImage(null);
     setError(null);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
       const sanitizedPrompt = prompt.trim().substring(0, 1000);
       const fullPrompt = `High quality professional photography for brand: ${brand.name}. ${sanitizedPrompt}. Aesthetic: Clean, premium, commercial. Industry: ${brand.industry}.`;
       
@@ -40,6 +41,7 @@ const VisualStudio: React.FC<Props> = ({ brand }) => {
     } catch (err: any) {
       console.error(err);
       setError(err.message || "Failed to generate image. Please try again.");
+      toast.error(err.message || "Failed to generate image.");
     } finally {
       setLoading(false);
     }
@@ -54,7 +56,7 @@ const VisualStudio: React.FC<Props> = ({ brand }) => {
     setResultVideo(null);
     setError(null);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
       const sanitizedPrompt = prompt.trim().substring(0, 1000);
       const fullPrompt = `Cinematic brand commercial for ${brand.name}. ${sanitizedPrompt}. 4k, professional lighting.`;
       
@@ -95,6 +97,7 @@ const VisualStudio: React.FC<Props> = ({ brand }) => {
     } catch (err: any) {
       console.error(err);
       setError("Internal error or timeout. This often happens during high demand for video models.");
+      toast.error("Video generation failed or timed out.");
     } finally {
       setLoading(false);
     }

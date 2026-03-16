@@ -1,7 +1,8 @@
 
 import React, { useState } from 'react';
-import { GoogleGenAI } from "@google/genai";
+import { ai } from '../lib/api';
 import { BrandProfile } from '../types';
+import toast from 'react-hot-toast';
 import { Linkedin, Send, Copy, Loader2, Share2 } from 'lucide-react';
 
 interface Props {
@@ -18,7 +19,7 @@ const ContentStudio: React.FC<Props> = ({ brand, savedPosts, setSavedPosts }) =>
     if (!topic) return;
     setLoading(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
       const response = await ai.models.generateContent({
         model: 'gemini-3-pro-preview',
         contents: `Create 3 engaging LinkedIn posts for ${brand.name} in ${brand.industry} about "${topic}".`,
@@ -27,8 +28,9 @@ const ContentStudio: React.FC<Props> = ({ brand, savedPosts, setSavedPosts }) =>
       const content = response.text || '';
       const splitPosts = content.split(/Post \d+:?/i).filter(p => p.trim().length > 10);
       setSavedPosts([...splitPosts, ...savedPosts].slice(0, 9));
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
+      toast.error('Failed to generate content. ' + (error.message || 'Please try again.'));
     } finally {
       setLoading(false);
     }

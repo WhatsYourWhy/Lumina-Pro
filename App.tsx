@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { Toaster } from 'react-hot-toast';
 import { 
   LayoutDashboard, 
   Sparkles, 
@@ -79,6 +80,7 @@ const App: React.FC = () => {
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#020617] text-slate-200">
+      <Toaster position="top-right" toastOptions={{ style: { background: '#1e293b', color: '#f8fafc', border: '1px solid #334155' } }} />
       <aside className={`fixed lg:static inset-y-0 left-0 z-[70] ${isSidebarOpen ? 'w-64 translate-x-0' : 'w-64 -translate-x-full lg:translate-x-0 lg:w-20'} transition-all duration-300 ease-in-out border-r border-slate-800 flex flex-col glass bg-[#020617]/95 lg:bg-transparent`}>
         <div className="p-6 flex items-center justify-between">
           {(isSidebarOpen || window.innerWidth >= 1024) && <h1 className={`text-xl font-bold gradient-text tracking-tight ${!isSidebarOpen && 'lg:hidden'}`}>LUMINA</h1>}
