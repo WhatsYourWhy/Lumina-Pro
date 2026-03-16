@@ -22,6 +22,9 @@ import MarketInsights from './components/MarketInsights';
 import PitchCoach from './components/PitchCoach';
 import Overview from './components/Overview';
 import SupplyChainConsole from './components/SupplyChainConsole';
+import Auth from './components/Auth';
+import { supabase } from './lib/supabase';
+import type { User } from '@supabase/supabase-js';
 
 interface StrategicEntry {
   type: string;
@@ -30,30 +33,109 @@ interface StrategicEntry {
 }
 
 const App: React.FC = () => {
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [activeSection, setActiveSection] = useState<AppSection>(AppSection.OVERVIEW);
   
-  const [brand, setBrand] = useState<BrandProfile>(() => {
-    const saved = localStorage.getItem('lumina_brand_profile');
-    return saved ? JSON.parse(saved) : { name: '', industry: '', description: '', tone: '' };
-  });
+  const [brand, setBrand] = useState<BrandProfile>({ name: '', industry: '', description: '', tone: '' });
 
   const [globalIntel, setGlobalIntel] = useState<{
     strategyHistory: StrategicEntry[];
     marketAnalysis: string | null;
     contentDrafts: string[];
     logistics: string | null;
-  }>(() => {
-    const saved = localStorage.getItem('lumina_global_intel_v2');
-    return saved ? JSON.parse(saved) : { strategyHistory: [], marketAnalysis: null, contentDrafts: [], logistics: null };
-  });
+  }>({ strategyHistory: [], marketAnalysis: null, contentDrafts: [], logistics: null });
 
   useEffect(() => {
-    localStorage.setItem('lumina_brand_profile', JSON.stringify(brand));
-  }, [brand]);
+    // Check active sessions and sets the user
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      if (!session?.user) setAuthLoading(false);
+    });
+
+    // Listen for changes on auth state
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Fetch Database State when User Logs in
+  useEffect(() => {
+    async function loadUserData() {
+      if (!user) return;
+      
+      try {
+        const [brandRes, intelRes] = await Promise.all([
+          supabase.from('brand_profiles').select('*').eq('id', user.id).single(),
+          supabase.from('global_intel').select('*').eq('id', user.id).single()
+        ]);
+
+        if (brandRes.data) {
+          setBrand({
+            name: brandRes.data.name || '',
+            industry: brandRes.data.industry || '',
+            description: brandRes.data.description || '',
+            tone: brandRes.data.tone || ''
+          });
+        }
+
+        if (intelRes.data) {
+          setGlobalIntel({
+             strategyHistory: intelRes.data.strategy_history || [],
+             marketAnalysis: intelRes.data.market_analysis,
+             contentDrafts: intelRes.data.content_drafts || [],
+             logistics: intelRes.data.logistics
+          });
+        }
+      } catch (err) {
+        console.error("Failed to load user data from Supabase", err);
+      } finally {
+        setAuthLoading(false);
+      }
+    }
+
+    if (user) loadUserData();
+  }, [user]);
+
+  // Sync state to Database periodically or on critical changes
+  useEffect(() => {
+    if (!user || authLoading) return;
+    
+    const syncBrand = async () => {
+      if (!brand.name && !brand.industry) return; // don't sync empty initial state
+      await supabase.from('brand_profiles').upsert({
+        id: user.id,
+        name: brand.name,
+        industry: brand.industry,
+        description: brand.description,
+        tone: brand.tone,
+        updated_at: new Date().toISOString()
+      });
+    };
+    syncBrand();
+  }, [brand, user, authLoading]);
 
   useEffect(() => {
-    localStorage.setItem('lumina_global_intel_v2', JSON.stringify(globalIntel));
-  }, [globalIntel]);
+    if (!user || authLoading) return;
+    
+    const syncIntel = async () => {
+      await supabase.from('global_intel').upsert({
+        id: user.id,
+        strategy_history: globalIntel.strategyHistory,
+        market_analysis: globalIntel.marketAnalysis,
+        content_drafts: globalIntel.contentDrafts,
+        logistics: globalIntel.logistics,
+        updated_at: new Date().toISOString()
+      });
+    };
+    syncIntel();
+  }, [globalIntel, user, authLoading]);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+  };
 
   const updateIntel = (key: keyof typeof globalIntel, value: any) => {
     setGlobalIntel(prev => ({ ...prev, [key]: value }));
@@ -81,6 +163,11 @@ const App: React.FC = () => {
   return (
     <div className="flex h-screen overflow-hidden bg-[#020617] text-slate-200">
       <Toaster position="top-right" toastOptions={{ style: { background: '#1e293b', color: '#f8fafc', border: '1px solid #334155' } }} />
+      
+      {!user ? (
+        <Auth onAuthSuccess={() => console.log('Authenticated')} />
+      ) : (
+      <>
       <aside className={`fixed lg:static inset-y-0 left-0 z-[70] ${isSidebarOpen ? 'w-64 translate-x-0' : 'w-64 -translate-x-full lg:translate-x-0 lg:w-20'} transition-all duration-300 ease-in-out border-r border-slate-800 flex flex-col glass bg-[#020617]/95 lg:bg-transparent`}>
         <div className="p-6 flex items-center justify-between">
           {(isSidebarOpen || window.innerWidth >= 1024) && <h1 className={`text-xl font-bold gradient-text tracking-tight ${!isSidebarOpen && 'lg:hidden'}`}>LUMINA</h1>}
@@ -105,6 +192,7 @@ const App: React.FC = () => {
           <div className="flex items-center gap-3">
             {brand.name && <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /><span className="text-[10px] font-black text-emerald-500 uppercase">{brand.name}</span></div>}
             <button onClick={() => setActiveSection(AppSection.OVERVIEW)} className="p-2 hover:bg-slate-800 rounded-lg text-slate-400"><Briefcase size={20} /></button>
+            <button onClick={handleLogout} className="text-xs text-slate-400 hover:text-white px-3 py-1.5 rounded-lg border border-slate-800 hover:bg-slate-800 transition-colors">Log Out</button>
           </div>
         </header>
 
@@ -120,6 +208,8 @@ const App: React.FC = () => {
           </div>
         </div>
       </main>
+      </>
+      )}
     </div>
   );
 };
