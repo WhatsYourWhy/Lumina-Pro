@@ -170,7 +170,7 @@ const App: React.FC = () => {
       <Toaster position="top-right" toastOptions={{ style: { background: '#1e293b', color: '#f8fafc', border: '1px solid #334155' } }} />
       
       {!user ? (
-        <Auth onAuthSuccess={() => console.log('Authenticated')} />
+        <Auth onAuthSuccess={() => {}} />
       ) : (
       <>
       <aside className={`fixed lg:static inset-y-0 left-0 z-[70] ${isSidebarOpen ? 'w-64 translate-x-0' : 'w-64 -translate-x-full lg:translate-x-0 lg:w-20'} transition-all duration-300 ease-in-out border-r border-slate-800 flex flex-col glass bg-[#020617]/95 lg:bg-transparent`}>

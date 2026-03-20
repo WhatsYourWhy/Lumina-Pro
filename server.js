@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
 import { createProxyMiddleware } from 'http-proxy-middleware';
+import helmet from 'helmet';
 
 dotenv.config({ path: '.env.local' });
 
@@ -11,6 +12,7 @@ const port = process.env.PORT || 3001;
 
 const allowedOrigins = process.env.FRONTEND_URL ? [process.env.FRONTEND_URL, 'http://localhost:3000'] : ['http://localhost:3000'];
 app.use(cors({ origin: allowedOrigins }));
+app.use(helmet());
 
 // Rate limiting: max 100 requests per 15 minutes per IP
 const limiter = rateLimit({
