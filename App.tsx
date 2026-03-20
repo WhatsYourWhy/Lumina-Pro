@@ -23,6 +23,7 @@ import PitchCoach from './components/PitchCoach';
 import Overview from './components/Overview';
 import SupplyChainConsole from './components/SupplyChainConsole';
 import Auth from './components/Auth';
+import ExportPDF from './components/ExportPDF';
 import { supabase } from './lib/supabase';
 import type { User } from '@supabase/supabase-js';
 
@@ -195,6 +196,7 @@ const App: React.FC = () => {
           </div>
           <div className="flex items-center gap-3">
             {brand.name && <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /><span className="text-[10px] font-black text-emerald-500 uppercase">{brand.name}</span></div>}
+            {brand.name && <ExportPDF brand={brand} intel={globalIntel} />}
             <button onClick={() => setActiveSection(AppSection.OVERVIEW)} className="p-2 hover:bg-slate-800 rounded-lg text-slate-400"><Briefcase size={20} /></button>
             <button onClick={handleLogout} className="text-xs text-slate-400 hover:text-white px-3 py-1.5 rounded-lg border border-slate-800 hover:bg-slate-800 transition-colors">Log Out</button>
           </div>
