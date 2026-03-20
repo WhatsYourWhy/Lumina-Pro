@@ -22,3 +22,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Virtual Environments & Python
+venv/
+.venv/
+env/
+.env/
+__pycache__/
+*.pyc
