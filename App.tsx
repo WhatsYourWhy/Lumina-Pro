@@ -35,6 +35,7 @@ interface StrategicEntry {
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [activeSection, setActiveSection] = useState<AppSection>(AppSection.OVERVIEW);
   
   const [brand, setBrand] = useState<BrandProfile>({ name: '', industry: '', description: '', tone: '' });
@@ -89,8 +90,10 @@ const App: React.FC = () => {
              logistics: intelRes.data.logistics
           });
         }
+        setIsDataLoaded(true);
       } catch (err) {
         console.error("Failed to load user data from Supabase", err);
+        // Error toast could be added here
       } finally {
         setAuthLoading(false);
       }
@@ -101,10 +104,9 @@ const App: React.FC = () => {
 
   // Sync state to Database periodically or on critical changes
   useEffect(() => {
-    if (!user || authLoading) return;
+    if (!user || authLoading || !isDataLoaded) return;
     
-    const syncBrand = async () => {
-      if (!brand.name && !brand.industry) return; // don't sync empty initial state
+    const timeoutId = setTimeout(async () => {
       await supabase.from('brand_profiles').upsert({
         id: user.id,
         name: brand.name,
@@ -113,14 +115,15 @@ const App: React.FC = () => {
         tone: brand.tone,
         updated_at: new Date().toISOString()
       });
-    };
-    syncBrand();
-  }, [brand, user, authLoading]);
+    }, 1500); // 1.5s debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [brand, user, authLoading, isDataLoaded]);
 
   useEffect(() => {
-    if (!user || authLoading) return;
+    if (!user || authLoading || !isDataLoaded) return;
     
-    const syncIntel = async () => {
+    const timeoutId = setTimeout(async () => {
       await supabase.from('global_intel').upsert({
         id: user.id,
         strategy_history: globalIntel.strategyHistory,
@@ -129,9 +132,10 @@ const App: React.FC = () => {
         logistics: globalIntel.logistics,
         updated_at: new Date().toISOString()
       });
-    };
-    syncIntel();
-  }, [globalIntel, user, authLoading]);
+    }, 1500); // 1.5s debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [globalIntel, user, authLoading, isDataLoaded]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
