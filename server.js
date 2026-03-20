@@ -45,6 +45,10 @@ app.use('/', createProxyMiddleware({
   }
 }));
 
-app.listen(port, () => {
-  console.log(`Gemini Proxy running on http://localhost:${port}`);
-});
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(port, () => {
+    console.log(`Gemini Proxy running on http://localhost:${port}`);
+  });
+}
+
+export default app;
