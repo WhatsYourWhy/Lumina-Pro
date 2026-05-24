@@ -34,8 +34,8 @@ describe('Auth Component', () => {
     const mockOnAuthSuccess = vi.fn();
     render(<Auth onAuthSuccess={mockOnAuthSuccess} />);
     
-    // Check if LUMINA title is rendered
-    expect(screen.getByText('LUMINA')).toBeInTheDocument();
+    // Check if SHANK STRATEGY title is rendered
+    expect(screen.getByText('SHANK STRATEGY')).toBeInTheDocument();
     
     // Check if Sign In button is rendered (using getByRole to be specific or text)
     expect(screen.getByRole('button', { name: /Sign In/i })).toBeInTheDocument();

@@ -5,9 +5,10 @@ import toast from 'react-hot-toast';
 
 interface AuthProps {
   onAuthSuccess: () => void;
+  onOfflineMode?: () => void;
 }
 
-const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
+const Auth: React.FC<AuthProps> = ({ onAuthSuccess, onOfflineMode }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -39,8 +40,8 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
     <div className="min-h-screen bg-[#020617] flex items-center justify-center p-4">
       <div className="w-full max-w-md glass p-8 rounded-3xl space-y-8 animate-in fade-in zoom-in-95 duration-500">
         <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight text-white mb-2">LUMINA</h1>
-          <p className="text-slate-400 text-sm">Sign in to sync your strategic frameworks</p>
+          <h1 className="text-2xl font-black tracking-wider text-indigo-400 mb-2">SHANK STRATEGY</h1>
+          <p className="text-slate-400 text-xs uppercase tracking-widest">Operations & Consulting Workbench</p>
         </div>
 
         <form onSubmit={handleAuth} className="space-y-6">
@@ -77,6 +78,17 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
             {loading ? <Loader2 className="animate-spin" size={18} /> : (isLogin ? 'Sign In' : 'Create Account')}
             {!loading && <ArrowRight size={16} />}
           </button>
+
+          {onOfflineMode && (
+            <button 
+              type="button" 
+              onClick={onOfflineMode}
+              disabled={loading}
+              className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
+            >
+              Use Offline (Local Storage)
+            </button>
+          )}
         </form>
 
         <div className="text-center text-sm text-slate-500">
