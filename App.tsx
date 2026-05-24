@@ -75,10 +75,21 @@ const App: React.FC = () => {
       
       if (user.id === 'offline-local-user') {
         try {
-          const localBrand = localStorage.getItem('SHANK_OFFLINE_BRAND');
-          const localIntel = localStorage.getItem('SHANK_OFFLINE_INTEL');
-          if (localBrand) setBrand(JSON.parse(localBrand));
-          if (localIntel) setGlobalIntel(JSON.parse(localIntel));
+          const localBrand = localStorage.getItem('SHANK_OFFLINE_BRAND_offline-local-user');
+          const localIntel = localStorage.getItem('SHANK_OFFLINE_INTEL_offline-local-user');
+          
+          if (localBrand) {
+            setBrand(JSON.parse(localBrand));
+          } else {
+            setBrand({ name: '', industry: '', description: '', tone: '' });
+          }
+          
+          if (localIntel) {
+            setGlobalIntel(JSON.parse(localIntel));
+          } else {
+            setGlobalIntel({ strategyHistory: [], marketAnalysis: null, contentDrafts: [], logistics: null });
+          }
+          
           setIsDataLoaded(true);
         } catch (e) {
           console.error("Failed to load offline data", e);
@@ -101,6 +112,8 @@ const App: React.FC = () => {
             description: brandRes.data.description || '',
             tone: brandRes.data.tone || ''
           });
+        } else {
+          setBrand({ name: '', industry: '', description: '', tone: '' });
         }
 
         if (intelRes.data) {
@@ -110,14 +123,26 @@ const App: React.FC = () => {
              contentDrafts: intelRes.data.content_drafts || [],
              logistics: intelRes.data.logistics
           });
+        } else {
+          setGlobalIntel({ strategyHistory: [], marketAnalysis: null, contentDrafts: [], logistics: null });
         }
         setIsDataLoaded(true);
       } catch (err) {
         console.error("Failed to load user data from Supabase, attempting local storage fallback", err);
-        const localBrand = localStorage.getItem('SHANK_OFFLINE_BRAND');
-        const localIntel = localStorage.getItem('SHANK_OFFLINE_INTEL');
-        if (localBrand) setBrand(JSON.parse(localBrand));
-        if (localIntel) setGlobalIntel(JSON.parse(localIntel));
+        const localBrand = localStorage.getItem(`SHANK_OFFLINE_BRAND_${user.id}`);
+        const localIntel = localStorage.getItem(`SHANK_OFFLINE_INTEL_${user.id}`);
+        
+        if (localBrand) {
+          setBrand(JSON.parse(localBrand));
+        } else {
+          setBrand({ name: '', industry: '', description: '', tone: '' });
+        }
+        
+        if (localIntel) {
+          setGlobalIntel(JSON.parse(localIntel));
+        } else {
+          setGlobalIntel({ strategyHistory: [], marketAnalysis: null, contentDrafts: [], logistics: null });
+        }
         setIsDataLoaded(true);
       } finally {
         setAuthLoading(false);
@@ -133,7 +158,7 @@ const App: React.FC = () => {
     
     const timeoutId = setTimeout(async () => {
       if (user.id === 'offline-local-user') {
-        localStorage.setItem('SHANK_OFFLINE_BRAND', JSON.stringify(brand));
+        localStorage.setItem('SHANK_OFFLINE_BRAND_offline-local-user', JSON.stringify(brand));
         return;
       }
       
@@ -148,7 +173,7 @@ const App: React.FC = () => {
         });
       } catch (err) {
         console.warn("Supabase brand upsert failed, saving locally...", err);
-        localStorage.setItem('SHANK_OFFLINE_BRAND', JSON.stringify(brand));
+        localStorage.setItem(`SHANK_OFFLINE_BRAND_${user.id}`, JSON.stringify(brand));
       }
     }, 1500); // 1.5s debounce
 
@@ -160,7 +185,7 @@ const App: React.FC = () => {
     
     const timeoutId = setTimeout(async () => {
       if (user.id === 'offline-local-user') {
-        localStorage.setItem('SHANK_OFFLINE_INTEL', JSON.stringify(globalIntel));
+        localStorage.setItem('SHANK_OFFLINE_INTEL_offline-local-user', JSON.stringify(globalIntel));
         return;
       }
       
@@ -175,7 +200,7 @@ const App: React.FC = () => {
         });
       } catch (err) {
         console.warn("Supabase intel upsert failed, saving locally...", err);
-        localStorage.setItem('SHANK_OFFLINE_INTEL', JSON.stringify(globalIntel));
+        localStorage.setItem(`SHANK_OFFLINE_INTEL_${user.id}`, JSON.stringify(globalIntel));
       }
     }, 1500); // 1.5s debounce
 
@@ -286,7 +311,7 @@ const App: React.FC = () => {
                   className="w-full bg-slate-900 border border-slate-700 focus:border-indigo-500 rounded-xl py-3 px-4 text-slate-200 text-xs focus:outline-none transition-colors"
                 />
                 <p className="text-[9px] text-slate-500 leading-relaxed text-left">
-                  <strong>Security Notice</strong>: Your API key is stored securely inside your local browser's <code>localStorage</code>. It never touches any third-party servers and is sent directly to Google AI endpoints.
+                  <strong>Security Notice</strong>: Your API key is kept in your browser's <code>sessionStorage</code> for this session only. It never touches any third-party servers and is sent directly to Google AI endpoints.
                 </p>
               </div>
               <div className="flex justify-end gap-3 pt-2">
