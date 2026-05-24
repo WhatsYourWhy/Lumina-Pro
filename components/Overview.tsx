@@ -29,10 +29,10 @@ interface Props {
 
 const Overview: React.FC<Props> = ({ brand, intel, onNavigate }) => {
   const steps = [
-    { id: AppSection.STRATEGY, title: 'Strategy Hub', desc: 'SCOR, SWOT, and PESTEL frameworks.', icon: BarChart3, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+    { id: AppSection.STRATEGY, title: 'Strategy Hub', desc: 'SCOR, SWOT, and operations frameworks.', icon: BarChart3, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
     { id: AppSection.SUPPLY_CHAIN, title: 'SC Intelligence', desc: 'Real-time logistics mapping.', icon: Truck, color: 'text-indigo-400', bg: 'bg-indigo-500/10' },
-    { id: AppSection.CONTENT, title: 'Creative Studio', desc: 'Multimodal asset generation.', icon: Sparkles, color: 'text-purple-400', bg: 'bg-purple-500/10' },
-    { id: AppSection.PITCH, title: 'Pitch Mentor', desc: 'Live conversational practice.', icon: Mic2, color: 'text-rose-400', bg: 'bg-rose-500/10' },
+    { id: AppSection.CONTENT, title: 'Creative Studio', desc: 'Brand copywriting and asset ideas.', icon: Sparkles, color: 'text-purple-400', bg: 'bg-purple-500/10' },
+    { id: AppSection.VISUALS, title: 'Asset Studio', desc: 'Commercial branding imagery.', icon: Sparkles, color: 'text-rose-400', bg: 'bg-rose-500/10' },
   ];
 
   const exportBrief = () => {
@@ -42,8 +42,8 @@ const Overview: React.FC<Props> = ({ brand, intel, onNavigate }) => {
       : 'No strategy framework generated yet.';
 
     const report = `
-LUMINA PRO: EXECUTIVE STRATEGIC BRIEFING
-==========================================
+SHANK STRATEGY OPS LLC: EXECUTIVE STRATEGIC BRIEFING
+===================================================
 Report Date: ${timestamp}
 Project: ${brand.name || 'INTERNAL PROJECT'}
 Status: CONFIDENTIAL | FOR INTERNAL USE ONLY
@@ -73,15 +73,15 @@ ${intel.contentDrafts.length > 0
   ? intel.contentDrafts.map((post, i) => `[DRAFT ${i+1}]\n${post}`).join('\n\n---\n\n') 
   : 'Creative studio drafts empty.'}
 
-==========================================
+===================================================
 DOCUMENT END
-Lumina AI Operating System v2.5
+Shank Strategy Ops Workbench v3.0
     `.trim();
     
     const element = document.createElement("a");
     const file = new Blob([report], {type: 'text/plain'});
     element.href = URL.createObjectURL(file);
-    element.download = `Lumina_Executive_Brief_${brand.name.replace(/\s+/g, '_') || 'Business'}.txt`;
+    element.download = `Shank_Strategy_Executive_Brief_${brand.name.replace(/\s+/g, '_') || 'Business'}.txt`;
     document.body.appendChild(element);
     element.click();
     document.body.removeChild(element);
@@ -91,8 +91,8 @@ Lumina AI Operating System v2.5
     <div className="max-w-6xl mx-auto space-y-12 animate-in fade-in pb-20">
       <div className="flex flex-col md:flex-row items-center gap-12">
         <div className="flex-1 space-y-6">
-          <h1 className="text-4xl lg:text-6xl font-black tracking-tighter leading-[0.9]">Intelligence <span className="gradient-text">Operationalized.</span></h1>
-          <p className="text-slate-400 text-lg leading-relaxed max-w-xl">Unified strategy engine for ${brand.name || 'modern brands'}. Build frameworks, map risk, and refine your pitch in a single persistent environment.</p>
+          <h1 className="text-4xl lg:text-6xl font-black tracking-tighter leading-[0.9]">Strategy & Operations <span className="gradient-text">Amplified.</span></h1>
+          <p className="text-slate-400 text-lg leading-relaxed max-w-xl">Proprietary consulting and logistics workbench for ${brand.name || 'Shank Strategy clients'}. Build operations frameworks, map transit risks, and draft marketing assets in one environment.</p>
           <div className="flex flex-wrap gap-4">
             <button onClick={() => onNavigate?.(AppSection.STRATEGY)} className="px-8 py-3.5 bg-indigo-500 text-white rounded-2xl font-bold flex items-center gap-3 shadow-xl shadow-indigo-500/20 active:scale-95 transition-all">Launch Nucleus <ChevronRight size={18} /></button>
             <button onClick={exportBrief} disabled={!brand.name} className="px-8 py-3.5 bg-slate-800 disabled:opacity-50 text-white rounded-2xl font-bold flex items-center gap-3 border border-slate-700 active:scale-95 transition-all"><Download size={18} /> Export Briefcase</button>

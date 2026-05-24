@@ -12,7 +12,6 @@ export enum AppSection {
   CONTENT = 'CONTENT',
   VISUALS = 'VISUALS',
   MARKET = 'MARKET',
-  PITCH = 'PITCH',
   SUPPLY_CHAIN = 'SUPPLY_CHAIN'
 }
 

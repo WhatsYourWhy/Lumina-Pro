@@ -23,6 +23,15 @@ const limiter = rateLimit({
 
 app.use(limiter);
 
+
+// Fail fast with a clear message when no upstream key is configured.
+app.use((req, res, next) => {
+  if (!process.env.GEMINI_API_KEY) {
+    return res.status(503).json({ error: 'Proxy is not configured: missing GEMINI_API_KEY' });
+  }
+  next();
+});
+
 // Proxy everything to Gemini API
 app.use('/', createProxyMiddleware({
   target: 'https://generativelanguage.googleapis.com',

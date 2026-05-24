@@ -1,10 +1,37 @@
 import { GoogleGenAI } from "@google/genai";
 
-// We use a proxy to keep the true API key secure on the backend.
-// The SDK requires an API key string, so we provide a placeholder.
-export const ai = new GoogleGenAI({
-  apiKey: "proxy-secured-key",
-  httpOptions: { 
-    baseUrl: typeof window !== 'undefined' ? `${window.location.origin}/api` : 'http://localhost:3001'
+let runtimeApiKey: string | null = null;
+
+// Retrieves an in-memory key if running in the client browser.
+// Falls back to the proxy key when no runtime key is set.
+export const getClientApiKey = (): string => {
+  if (typeof window !== 'undefined' && runtimeApiKey) {
+    return runtimeApiKey;
   }
+  return 'proxy-secured-key';
+};
+
+const getHttpOptions = () => {
+  const key = getClientApiKey();
+  // If the user entered their own API key, communicate directly with Google's API endpoints.
+  if (key !== 'proxy-secured-key') {
+    return undefined;
+  }
+  // Otherwise, route through the local Express proxy backend.
+  return {
+    baseUrl: typeof window !== 'undefined' ? `${window.location.origin}/api` : 'http://localhost:3001'
+  };
+};
+
+export const createAiClient = () => new GoogleGenAI({
+  apiKey: getClientApiKey(),
+  httpOptions: getHttpOptions()
 });
+
+export let ai = createAiClient();
+
+// Saves the key only for the active runtime and re-instantiates the SDK.
+export const setClientApiKey = (newKey: string) => {
+  runtimeApiKey = newKey.trim() ? newKey.trim() : null;
+  ai = createAiClient();
+};
