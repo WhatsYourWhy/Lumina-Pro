@@ -339,7 +339,7 @@ const App: React.FC = () => {
                   className="w-full bg-slate-900 border border-slate-700 focus:border-indigo-500 rounded-xl py-3 px-4 text-slate-200 text-xs focus:outline-none transition-colors"
                 />
                 <p className="text-[9px] text-slate-500 leading-relaxed text-left">
-                  <strong>Security Notice</strong>: Your API key is kept in your browser's <code>sessionStorage</code> for this session only. It never touches any third-party servers and is sent directly to Google AI endpoints.
+                  <strong>Security Notice</strong>: Your API key is kept in memory for the active browser session only. It never touches any third-party servers and is sent directly to Google AI endpoints.
                 </p>
               </div>
               <div className="flex justify-end gap-3 pt-2">
