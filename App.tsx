@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Toaster } from 'react-hot-toast';
+import { Toaster, toast } from 'react-hot-toast';
 import { 
   LayoutDashboard, 
   Sparkles, 
@@ -33,22 +33,38 @@ interface StrategicEntry {
   content: string;
 }
 
+interface GlobalIntelState {
+  strategyHistory: StrategicEntry[];
+  marketAnalysis: string | null;
+  contentDrafts: string[];
+  logistics: string | null;
+}
+
+const createEmptyBrand = (): BrandProfile => ({ name: '', industry: '', description: '', tone: '' });
+const createEmptyGlobalIntel = (): GlobalIntelState => ({
+  strategyHistory: [],
+  marketAnalysis: null,
+  contentDrafts: [],
+  logistics: null
+});
+
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [activeSection, setActiveSection] = useState<AppSection>(AppSection.OVERVIEW);
   
-  const [brand, setBrand] = useState<BrandProfile>({ name: '', industry: '', description: '', tone: '' });
+  const [brand, setBrand] = useState<BrandProfile>(createEmptyBrand());
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [apiKeyInput, setApiKeyInput] = useState(getClientApiKey() === 'proxy-secured-key' ? '' : getClientApiKey());
 
-  const [globalIntel, setGlobalIntel] = useState<{
-    strategyHistory: StrategicEntry[];
-    marketAnalysis: string | null;
-    contentDrafts: string[];
-    logistics: string | null;
-  }>({ strategyHistory: [], marketAnalysis: null, contentDrafts: [], logistics: null });
+  const [globalIntel, setGlobalIntel] = useState<GlobalIntelState>(createEmptyGlobalIntel());
+
+  const resetClientState = () => {
+    setBrand(createEmptyBrand());
+    setGlobalIntel(createEmptyGlobalIntel());
+    setIsDataLoaded(false);
+  };
 
   useEffect(() => {
     // Check active sessions and sets the user
@@ -64,9 +80,7 @@ const App: React.FC = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       if (!session?.user) {
-        setBrand({ name: '', industry: '', description: '', tone: '' });
-        setGlobalIntel({ strategyHistory: [], marketAnalysis: null, contentDrafts: [], logistics: null });
-        setIsDataLoaded(false);
+        resetClientState();
       }
     });
 
@@ -86,13 +100,13 @@ const App: React.FC = () => {
           if (localBrand) {
             setBrand(JSON.parse(localBrand));
           } else {
-            setBrand({ name: '', industry: '', description: '', tone: '' });
+            setBrand(createEmptyBrand());
           }
           
           if (localIntel) {
             setGlobalIntel(JSON.parse(localIntel));
           } else {
-            setGlobalIntel({ strategyHistory: [], marketAnalysis: null, contentDrafts: [], logistics: null });
+            setGlobalIntel(createEmptyGlobalIntel());
           }
           
           setIsDataLoaded(true);
@@ -118,7 +132,7 @@ const App: React.FC = () => {
             tone: brandRes.data.tone || ''
           });
         } else {
-          setBrand({ name: '', industry: '', description: '', tone: '' });
+          setBrand(createEmptyBrand());
         }
 
         if (intelRes.data) {
@@ -129,7 +143,7 @@ const App: React.FC = () => {
              logistics: intelRes.data.logistics
           });
         } else {
-          setGlobalIntel({ strategyHistory: [], marketAnalysis: null, contentDrafts: [], logistics: null });
+          setGlobalIntel(createEmptyGlobalIntel());
         }
         setIsDataLoaded(true);
       } catch (err) {
@@ -140,13 +154,13 @@ const App: React.FC = () => {
         if (localBrand) {
           setBrand(JSON.parse(localBrand));
         } else {
-          setBrand({ name: '', industry: '', description: '', tone: '' });
+          setBrand(createEmptyBrand());
         }
         
         if (localIntel) {
           setGlobalIntel(JSON.parse(localIntel));
         } else {
-          setGlobalIntel({ strategyHistory: [], marketAnalysis: null, contentDrafts: [], logistics: null });
+          setGlobalIntel(createEmptyGlobalIntel());
         }
         setIsDataLoaded(true);
       } finally {
@@ -213,14 +227,21 @@ const App: React.FC = () => {
   }, [globalIntel, user, authLoading, isDataLoaded]);
 
   const handleLogout = async () => {
-    setBrand({ name: '', industry: '', description: '', tone: '' });
-    setGlobalIntel({ strategyHistory: [], marketAnalysis: null, contentDrafts: [], logistics: null });
-    setIsDataLoaded(false);
     if (user?.id === 'offline-local-user') {
+      resetClientState();
       setUser(null);
       return;
     }
-    await supabase.auth.signOut();
+
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.warn('Supabase sign out failed', error);
+      toast.error('Unable to sign out. Please try again.');
+      return;
+    }
+
+    resetClientState();
+    setUser(null);
   };
 
   const updateIntel = (key: keyof typeof globalIntel, value: any) => {
