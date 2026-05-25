@@ -64,6 +64,14 @@ const renderMarkdown = (text: string): React.ReactNode => {
   );
 };
 
+const formatTimestamp = (ts: string) => {
+  const date = new Date(ts);
+  if (!isNaN(date.getTime())) {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+  return ts;
+};
+
 const StrategyBoard: React.FC<Props> = ({ brand, setBrand, history, onNewEntry }) => {
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -79,13 +87,13 @@ const StrategyBoard: React.FC<Props> = ({ brand, setBrand, history, onNewEntry }
     setError(null);
     try {
       const searchResponse = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-3.5-flash',
         contents: `Perform deep web research on the company "${brand.name}". Identify their primary industry, core business model, and brand tone.`,
         config: { tools: [{ googleSearch: {} }] }
       });
 
       const extractResponse = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-3.5-flash',
         contents: `Extract business profile data from this text: "${searchResponse.text}"`,
         config: { 
           responseMimeType: "application/json",
@@ -132,7 +140,7 @@ const StrategyBoard: React.FC<Props> = ({ brand, setBrand, history, onNewEntry }
       }
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview',
+        model: 'gemini-3.1-pro-preview',
         contents: prompt,
         config: {
           thinkingConfig: { thinkingBudget: 4000 },
@@ -146,7 +154,7 @@ const StrategyBoard: React.FC<Props> = ({ brand, setBrand, history, onNewEntry }
       // Auto-save to history
       onNewEntry({
         type: typeLabel,
-        timestamp: new Date().toLocaleTimeString(),
+        timestamp: new Date().toISOString(),
         content: content
       });
       setDisplayIndex(0);
@@ -157,6 +165,7 @@ const StrategyBoard: React.FC<Props> = ({ brand, setBrand, history, onNewEntry }
       setLoading(false); 
     }
   };
+
 
   const activeContent = currentAnalysis || history[displayIndex]?.content;
   const activeTitle = currentAnalysis ? tempType : history[displayIndex]?.type;
@@ -240,7 +249,7 @@ const StrategyBoard: React.FC<Props> = ({ brand, setBrand, history, onNewEntry }
                     className={`w-full text-left p-3 rounded-xl text-xs flex justify-between items-center transition-all ${(!currentAnalysis && displayIndex === i) ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/30' : 'hover:bg-slate-800 text-slate-500'}`}
                   >
                     <span className="truncate pr-2 font-medium">{h.type}</span>
-                    <span className="opacity-40 text-[9px] shrink-0">{h.timestamp}</span>
+                    <span className="opacity-40 text-[9px] shrink-0">{formatTimestamp(h.timestamp)}</span>
                   </button>
                 ))
               ) : (

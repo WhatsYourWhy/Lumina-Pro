@@ -72,7 +72,7 @@ const MarketInsights: React.FC<Props> = ({ brand, analysis, setAnalysis }) => {
     setAnalysis(null);
     try {
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-3.5-flash',
         contents: query,
         config: { tools: [{ googleSearch: {} }] }
       });
@@ -85,7 +85,7 @@ const MarketInsights: React.FC<Props> = ({ brand, analysis, setAnalysis }) => {
       setSources(extractedSources);
 
       const rabbitResponse = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-3.5-flash',
         contents: `Based on this text: "${response.text}", generate 3 highly targeted, strategic follow-up questions for a consulting firm analyzing ${brand.name || 'a client'}. Return a JSON array of strings only.`,
         config: { responseMimeType: "application/json" }
       });

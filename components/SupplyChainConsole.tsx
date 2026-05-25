@@ -77,7 +77,7 @@ const SupplyChainConsole: React.FC<Props> = ({ brand, intel, setIntel }) => {
     setIntel(null);
     try {
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3.5-flash',
         contents: `Analyze logistics and supply chain risks for: "${route}". Context: ${brand.name || 'Shank Strategy client'} in ${brand.industry || 'Logistics Operations'}. Identify transit bottlenecks, customs clearance nodes, port congestion, and risk mitigation strategies.`,
         config: { tools: [{ googleMaps: {} }, { googleSearch: {} }] }
       });
@@ -95,7 +95,7 @@ const SupplyChainConsole: React.FC<Props> = ({ brand, intel, setIntel }) => {
     setMonitoring(true);
     try {
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-3.5-flash',
         contents: `Find CURRENT active logistical disruptions or bottlenecks affecting transit around/between: "${route}". Return a JSON array of objects with keys: "title", "summary", "severity" (choose from: high, medium, low). Keep response purely as JSON.`,
         config: { tools: [{ googleSearch: {} }], responseMimeType: "application/json" }
       });
