@@ -1,12 +1,13 @@
 import { GoogleGenAI } from "@google/genai";
 
-let runtimeApiKey: string | null = null;
-
-// Retrieves an in-memory key if running in the client browser.
-// Falls back to the proxy key when no runtime key is set.
+// Retrieves the key from sessionStorage if running in the client browser.
+// Falls back to the proxy key when no custom key is set.
 export const getClientApiKey = (): string => {
-  if (typeof window !== 'undefined' && runtimeApiKey) {
-    return runtimeApiKey;
+  if (typeof window !== 'undefined') {
+    const sessionKey = sessionStorage.getItem('SHANK_GEMINI_API_KEY');
+    if (sessionKey) {
+      return sessionKey;
+    }
   }
   return 'proxy-secured-key';
 };
@@ -30,8 +31,16 @@ export const createAiClient = () => new GoogleGenAI({
 
 export let ai = createAiClient();
 
-// Saves the key only for the active runtime and re-instantiates the SDK.
+// Saves the key to sessionStorage for the active session and re-instantiates the SDK.
 export const setClientApiKey = (newKey: string) => {
-  runtimeApiKey = newKey.trim() ? newKey.trim() : null;
+  if (typeof window !== 'undefined') {
+    const trimmed = newKey.trim();
+    if (trimmed) {
+      sessionStorage.setItem('SHANK_GEMINI_API_KEY', trimmed);
+    } else {
+      sessionStorage.removeItem('SHANK_GEMINI_API_KEY');
+    }
+  }
   ai = createAiClient();
 };
+

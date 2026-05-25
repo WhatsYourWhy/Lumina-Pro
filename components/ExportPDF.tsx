@@ -9,6 +9,14 @@ interface ExportProps {
   intel: any;
 }
 
+const formatTimestamp = (ts: string) => {
+  const date = new Date(ts);
+  if (!isNaN(date.getTime())) {
+    return date.toLocaleString();
+  }
+  return ts;
+};
+
 const ExportPDF: React.FC<ExportProps> = ({ brand, intel }) => {
   const [isExporting, setIsExporting] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
@@ -73,7 +81,7 @@ const ExportPDF: React.FC<ExportProps> = ({ brand, intel }) => {
           <div key={i} style={{ marginTop: '24px', padding: '20px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                <h3 style={{ fontWeight: 'bold', fontSize: '16px', textTransform: 'uppercase', color: '#6366f1', margin: 0 }}>{entry.type}</h3>
-               <span style={{ fontSize: '12px', color: '#94a3b8' }}>{new Date(entry.timestamp).toLocaleString()}</span>
+               <span style={{ fontSize: '12px', color: '#94a3b8' }}>{formatTimestamp(entry.timestamp)}</span>
             </div>
             <div style={{ whiteSpace: 'pre-wrap', fontSize: '14px', lineHeight: '1.7', color: '#334155' }}>{entry.content}</div>
           </div>

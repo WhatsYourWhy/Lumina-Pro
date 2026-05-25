@@ -63,6 +63,11 @@ const App: React.FC = () => {
     // Listen for changes on auth state
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
+      if (!session?.user) {
+        setBrand({ name: '', industry: '', description: '', tone: '' });
+        setGlobalIntel({ strategyHistory: [], marketAnalysis: null, contentDrafts: [], logistics: null });
+        setIsDataLoaded(false);
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -208,9 +213,11 @@ const App: React.FC = () => {
   }, [globalIntel, user, authLoading, isDataLoaded]);
 
   const handleLogout = async () => {
+    setBrand({ name: '', industry: '', description: '', tone: '' });
+    setGlobalIntel({ strategyHistory: [], marketAnalysis: null, contentDrafts: [], logistics: null });
+    setIsDataLoaded(false);
     if (user?.id === 'offline-local-user') {
       setUser(null);
-      setIsDataLoaded(false);
       return;
     }
     await supabase.auth.signOut();
