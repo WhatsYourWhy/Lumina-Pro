@@ -30,15 +30,18 @@ const VisualStudio: React.FC<Props> = ({ brand }) => {
       const sanitizedPrompt = prompt.trim().substring(0, 1000);
       const fullPrompt = `High quality professional photography for brand: ${brand.name || 'Shank Strategy client'}. ${sanitizedPrompt}. Aesthetic: Clean, premium, commercial. Industry: ${brand.industry || 'Logistics & Consulting'}.`;
       
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-image',
-        contents: { parts: [{ text: fullPrompt }] },
-        config: { imageConfig: { aspectRatio: "16:9" } }
+      const response = await ai.models.generateImages({
+        model: 'imagen-3.0-generate-002',
+        prompt: fullPrompt,
+        config: {
+          numberOfImages: 1,
+          aspectRatio: "16:9"
+        }
       });
 
-      const imagePart = response.candidates?.[0]?.content?.parts.find(p => p.inlineData);
-      if (imagePart?.inlineData) {
-        setResultImage(`data:image/png;base64,${imagePart.inlineData.data}`);
+      const base64ImageBytes = response.generatedImages?.[0]?.image?.imageBytes;
+      if (base64ImageBytes) {
+        setResultImage(`data:image/png;base64,${base64ImageBytes}`);
       } else {
         throw new Error("No image data returned from model.");
       }
