@@ -3,7 +3,7 @@ import { GoogleGenAI } from "@google/genai";
 let runtimeApiKey: string | null = null;
 
 // Retrieves an in-memory key if running in the client browser.
-// Falls back to the proxy key when no runtime key is set.
+// Falls back to the proxy key when no custom key is set.
 export const getClientApiKey = (): string => {
   if (typeof window !== 'undefined' && runtimeApiKey) {
     return runtimeApiKey;
@@ -35,3 +35,4 @@ export const setClientApiKey = (newKey: string) => {
   runtimeApiKey = newKey.trim() ? newKey.trim() : null;
   ai = createAiClient();
 };
+
