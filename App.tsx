@@ -80,9 +80,7 @@ const App: React.FC = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       if (!session?.user) {
-        setBrand({ name: '', industry: '', description: '', tone: '' });
-        setGlobalIntel({ strategyHistory: [], marketAnalysis: null, contentDrafts: [], logistics: null });
-        setIsDataLoaded(false);
+        resetClientState();
       }
     });
 
@@ -229,9 +227,6 @@ const App: React.FC = () => {
   }, [globalIntel, user, authLoading, isDataLoaded]);
 
   const handleLogout = async () => {
-    setBrand({ name: '', industry: '', description: '', tone: '' });
-    setGlobalIntel({ strategyHistory: [], marketAnalysis: null, contentDrafts: [], logistics: null });
-    setIsDataLoaded(false);
     if (user?.id === 'offline-local-user') {
       resetClientState();
       setUser(null);

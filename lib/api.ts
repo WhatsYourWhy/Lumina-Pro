@@ -1,11 +1,14 @@
 import { GoogleGenAI } from "@google/genai";
 
-let inMemoryApiKey = 'proxy-secured-key';
+let runtimeApiKey: string | null = null;
 
-// Retrieves the key from in-memory state.
+// Retrieves an in-memory key if running in the client browser.
 // Falls back to the proxy key when no custom key is set.
 export const getClientApiKey = (): string => {
-  return inMemoryApiKey;
+  if (typeof window !== 'undefined' && runtimeApiKey) {
+    return runtimeApiKey;
+  }
+  return 'proxy-secured-key';
 };
 
 const getHttpOptions = () => {
@@ -27,10 +30,9 @@ export const createAiClient = () => new GoogleGenAI({
 
 export let ai = createAiClient();
 
-// Saves the key in memory for the current page lifecycle and re-instantiates the SDK.
+// Saves the key only for the active runtime and re-instantiates the SDK.
 export const setClientApiKey = (newKey: string) => {
-  const trimmed = newKey.trim();
-  inMemoryApiKey = trimmed || 'proxy-secured-key';
+  runtimeApiKey = newKey.trim() ? newKey.trim() : null;
   ai = createAiClient();
 };
 
