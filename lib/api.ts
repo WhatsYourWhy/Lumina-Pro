@@ -1,15 +1,11 @@
 import { GoogleGenAI } from "@google/genai";
 
-// Retrieves the key from sessionStorage if running in the client browser.
+let inMemoryApiKey = 'proxy-secured-key';
+
+// Retrieves the key from in-memory state.
 // Falls back to the proxy key when no custom key is set.
 export const getClientApiKey = (): string => {
-  if (typeof window !== 'undefined') {
-    const sessionKey = sessionStorage.getItem('SHANK_GEMINI_API_KEY');
-    if (sessionKey) {
-      return sessionKey;
-    }
-  }
-  return 'proxy-secured-key';
+  return inMemoryApiKey;
 };
 
 const getHttpOptions = () => {
@@ -31,16 +27,10 @@ export const createAiClient = () => new GoogleGenAI({
 
 export let ai = createAiClient();
 
-// Saves the key to sessionStorage for the active session and re-instantiates the SDK.
+// Saves the key in memory for the current page lifecycle and re-instantiates the SDK.
 export const setClientApiKey = (newKey: string) => {
-  if (typeof window !== 'undefined') {
-    const trimmed = newKey.trim();
-    if (trimmed) {
-      sessionStorage.setItem('SHANK_GEMINI_API_KEY', trimmed);
-    } else {
-      sessionStorage.removeItem('SHANK_GEMINI_API_KEY');
-    }
-  }
+  const trimmed = newKey.trim();
+  inMemoryApiKey = trimmed || 'proxy-secured-key';
   ai = createAiClient();
 };
 
