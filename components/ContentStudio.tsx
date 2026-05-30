@@ -33,7 +33,7 @@ const ContentStudio: React.FC<Props> = ({ brand, savedPosts, setSavedPosts }) =>
         'Write in a standard authoritative thought-leadership business consulting tone.';
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3.1-pro-preview',
+        model: 'gemini-2.5-pro-preview',
         contents: `Create 3 engaging professional LinkedIn posts for the company "${brand.name || 'Shank Strategy'}" in the "${brand.industry || 'Management Consulting'}" sector. 
         Topic: "${topic}". 
         

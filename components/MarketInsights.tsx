@@ -27,10 +27,10 @@ const renderMarkdown = (text: string): React.ReactNode => {
       {lines.map((line, index) => {
         const trimmed = line.trim();
         if (trimmed.startsWith('### ')) {
-          return <h4 key={index} className="text-sm font-bold text-indigo-400 mt-5 mb-2">{trimmed.replace('### ', '')}</h4>;
+          return <h4 key={index} className="text-sm font-bold text-indigo-400 mt-5 mb-2">{parseBold(trimmed.replace('### ', ''))}</h4>;
         }
         if (trimmed.startsWith('## ')) {
-          return <h3 key={index} className="text-base font-black text-white mt-7 mb-2.5 border-b border-slate-800 pb-1">{trimmed.replace('## ', '')}</h3>;
+          return <h3 key={index} className="text-base font-black text-white mt-7 mb-2.5 border-b border-slate-800 pb-1">{parseBold(trimmed.replace('## ', ''))}</h3>;
         }
         if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
           return (
@@ -72,7 +72,7 @@ const MarketInsights: React.FC<Props> = ({ brand, analysis, setAnalysis }) => {
     setAnalysis(null);
     try {
       const response = await ai.models.generateContent({
-        model: 'gemini-3.5-flash',
+        model: 'gemini-2.5-flash',
         contents: query,
         config: { tools: [{ googleSearch: {} }] }
       });
@@ -85,7 +85,7 @@ const MarketInsights: React.FC<Props> = ({ brand, analysis, setAnalysis }) => {
       setSources(extractedSources);
 
       const rabbitResponse = await ai.models.generateContent({
-        model: 'gemini-3.5-flash',
+        model: 'gemini-2.5-flash',
         contents: `Based on this text: "${response.text}", generate 3 highly targeted, strategic follow-up questions for a consulting firm analyzing ${brand.name || 'a client'}. Return a JSON array of strings only.`,
         config: { responseMimeType: "application/json" }
       });
