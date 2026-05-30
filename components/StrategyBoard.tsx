@@ -87,13 +87,13 @@ const StrategyBoard: React.FC<Props> = ({ brand, setBrand, history, onNewEntry }
     setError(null);
     try {
       const searchResponse = await ai.models.generateContent({
-        model: 'gemini-3.5-flash',
+        model: 'gemini-2.5-flash',
         contents: `Perform deep web research on the company "${brand.name}". Identify their primary industry, core business model, and brand tone.`,
         config: { tools: [{ googleSearch: {} }] }
       });
 
       const extractResponse = await ai.models.generateContent({
-        model: 'gemini-3.5-flash',
+        model: 'gemini-2.5-flash',
         contents: `Extract business profile data from this text: "${searchResponse.text}"`,
         config: { 
           responseMimeType: "application/json",
@@ -140,7 +140,7 @@ const StrategyBoard: React.FC<Props> = ({ brand, setBrand, history, onNewEntry }
       }
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3.1-pro-preview',
+        model: 'gemini-2.5-pro-preview',
         contents: prompt,
         config: {
           thinkingConfig: { thinkingBudget: 4000 },
