@@ -36,13 +36,13 @@ const renderMarkdown = (text: string): React.ReactNode => {
       {lines.map((line, index) => {
         const trimmed = line.trim();
         if (trimmed.startsWith('### ')) {
-          return <h4 key={index} className="text-base font-bold text-indigo-400 mt-6 mb-2">{trimmed.replace('### ', '')}</h4>;
+          return <h4 key={index} className="text-base font-bold text-indigo-400 mt-6 mb-2">{parseBold(trimmed.replace('### ', ''))}</h4>;
         }
         if (trimmed.startsWith('## ')) {
-          return <h3 key={index} className="text-lg font-black text-white mt-8 mb-3 border-b border-slate-800/80 pb-1.5">{trimmed.replace('## ', '')}</h3>;
+          return <h3 key={index} className="text-lg font-black text-white mt-8 mb-3 border-b border-slate-800/80 pb-1.5">{parseBold(trimmed.replace('## ', ''))}</h3>;
         }
         if (trimmed.startsWith('# ')) {
-          return <h2 key={index} className="text-xl font-black text-white mt-10 mb-4">{trimmed.replace('# ', '')}</h2>;
+          return <h2 key={index} className="text-xl font-black text-white mt-10 mb-4">{parseBold(trimmed.replace('# ', ''))}</h2>;
         }
         if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
           const cleanText = trimmed.substring(2);

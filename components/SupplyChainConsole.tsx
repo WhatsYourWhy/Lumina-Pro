@@ -35,10 +35,10 @@ const renderMarkdown = (text: string): React.ReactNode => {
       {lines.map((line, index) => {
         const trimmed = line.trim();
         if (trimmed.startsWith('### ')) {
-          return <h4 key={index} className="text-[13px] font-bold text-indigo-400 mt-4 mb-1.5">{trimmed.replace('### ', '')}</h4>;
+          return <h4 key={index} className="text-[13px] font-bold text-indigo-400 mt-4 mb-1.5">{parseBold(trimmed.replace('### ', ''))}</h4>;
         }
         if (trimmed.startsWith('## ')) {
-          return <h3 key={index} className="text-sm font-black text-white mt-6 mb-2 border-b border-slate-800 pb-1">{trimmed.replace('## ', '')}</h3>;
+          return <h3 key={index} className="text-sm font-black text-white mt-6 mb-2 border-b border-slate-800 pb-1">{parseBold(trimmed.replace('## ', ''))}</h3>;
         }
         if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
           return (
