@@ -160,7 +160,9 @@ The proxy exposes two health endpoints (registered before the rate limiter and k
 | Endpoint | Cost | Reports |
 |---|---|---|
 | `GET /health` | none | Process uptime, whether `GEMINI_API_KEY` is loaded, trust-proxy setting, allowed CORS origins, `NODE_ENV` |
-| `GET /health/upstream` | one Google `models.list` call (no inference, no quota) | Whether the configured Gemini key is actually accepted by Google |
+| `GET /health/upstream` | one Google `models.list` call (no inference, no quota), cached 30 s | Whether the configured Gemini key is actually accepted by Google |
+
+`/health/upstream` is protected against abuse on publicly reachable deployments with **two complementary defenses**: a stricter per-IP rate limit (10 req/min, separate from the global limiter) and a 30-second in-process result cache that covers both successes and failures. Cached responses include `"cached": true` and a `cachedForMs` countdown so you can tell the difference from a fresh probe.
 
 Quick checks:
 

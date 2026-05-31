@@ -1,6 +1,6 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
-import app from './server.js';
+import app, { __resetUpstreamHealthCache } from './server.js';
 
 describe('Gemini Proxy Server', () => {
   it('should apply CORS headers', async () => {
@@ -55,6 +55,11 @@ describe('Gemini Proxy Server', () => {
   });
 
   describe('GET /health/upstream', () => {
+    beforeEach(() => {
+      // Reset the 30s result cache so each test exercises the real fetch path.
+      __resetUpstreamHealthCache();
+    });
+
     it('should return 503 misconfigured when the key is unset', async () => {
       const original = process.env.GEMINI_API_KEY;
       delete process.env.GEMINI_API_KEY;
@@ -118,6 +123,60 @@ describe('Gemini Proxy Server', () => {
         expect(res.status).toBe(502);
         expect(res.body.status).toBe('unreachable');
         expect(res.body.error).toBe('network down');
+      } finally {
+        fetchSpy.mockRestore();
+        if (original === undefined) delete process.env.GEMINI_API_KEY;
+        else process.env.GEMINI_API_KEY = original;
+      }
+    });
+
+    it('should cache the upstream result and not re-call Google within the TTL', async () => {
+      const original = process.env.GEMINI_API_KEY;
+      process.env.GEMINI_API_KEY = 'test-key';
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ models: [] })
+      });
+      try {
+        const first = await request(app).get('/health/upstream');
+        expect(first.status).toBe(200);
+        expect(first.body.status).toBe('ok');
+        expect(first.body.cached).toBeUndefined();
+
+        const second = await request(app).get('/health/upstream');
+        expect(second.status).toBe(200);
+        expect(second.body.status).toBe('ok');
+        expect(second.body.cached).toBe(true);
+        expect(typeof second.body.cachedForMs).toBe('number');
+
+        // Crucially: Google was only called once across both probes.
+        expect(fetchSpy).toHaveBeenCalledTimes(1);
+      } finally {
+        fetchSpy.mockRestore();
+        if (original === undefined) delete process.env.GEMINI_API_KEY;
+        else process.env.GEMINI_API_KEY = original;
+      }
+    });
+
+    it('should also cache failure responses so a bad key does not flood Google', async () => {
+      const original = process.env.GEMINI_API_KEY;
+      process.env.GEMINI_API_KEY = 'bad-key';
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+        ok: false,
+        status: 403,
+        statusText: 'Forbidden',
+        json: async () => ({ error: { message: 'PERMISSION_DENIED' } })
+      });
+      try {
+        const first = await request(app).get('/health/upstream');
+        expect(first.status).toBe(502);
+
+        const second = await request(app).get('/health/upstream');
+        expect(second.status).toBe(502);
+        expect(second.body.cached).toBe(true);
+
+        expect(fetchSpy).toHaveBeenCalledTimes(1);
       } finally {
         fetchSpy.mockRestore();
         if (original === undefined) delete process.env.GEMINI_API_KEY;

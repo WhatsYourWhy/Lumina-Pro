@@ -49,13 +49,44 @@ app.get('/health', (req, res) => {
 // Deep health — actually pings Google with the configured key. Uses the model
 // listing endpoint (no inference cost, no quota burn) to verify the key is
 // accepted upstream. Hit this when /health looks fine but real API calls fail.
-app.get('/health/upstream', async (req, res) => {
+//
+// Defense-in-depth against abuse on publicly reachable deployments:
+//   1. Per-endpoint rate limit (10/min/IP) — stricter than the global limiter
+//      and applied only here, so an attacker can't fan out upstream calls.
+//   2. 30s in-process result cache — even legitimate frequent polling resolves
+//      to a single upstream call per window. Both success AND failure are
+//      cached so a bad key doesn't generate one Google rejection per probe.
+const UPSTREAM_HEALTH_CACHE_TTL_MS = 30_000;
+let upstreamHealthCache = null; // { expiresAt, status, body }
+
+// Exported for tests to reset between cases.
+export const __resetUpstreamHealthCache = () => { upstreamHealthCache = null; };
+
+const upstreamHealthLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 10,
+  message: { status: 'rate_limited', error: 'Too many upstream health checks; try again shortly' }
+});
+
+app.get('/health/upstream', upstreamHealthLimiter, async (req, res) => {
   if (!process.env.GEMINI_API_KEY) {
     return res.status(503).json({
       status: 'misconfigured',
       reason: 'GEMINI_API_KEY is not set'
     });
   }
+
+  const now = Date.now();
+  if (upstreamHealthCache && upstreamHealthCache.expiresAt > now) {
+    return res.status(upstreamHealthCache.status).json({
+      ...upstreamHealthCache.body,
+      cached: true,
+      cachedForMs: upstreamHealthCache.expiresAt - now
+    });
+  }
+
+  let status;
+  let body;
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 5000);
@@ -65,21 +96,32 @@ app.get('/health/upstream', async (req, res) => {
     });
     clearTimeout(timeout);
     if (upstream.ok) {
-      return res.json({ status: 'ok', upstreamStatus: upstream.status });
+      status = 200;
+      body = { status: 'ok', upstreamStatus: upstream.status };
+    } else {
+      let errorBody = null;
+      try { errorBody = await upstream.json(); } catch { /* non-JSON */ }
+      status = 502;
+      body = {
+        status: 'upstream_error',
+        upstreamStatus: upstream.status,
+        error: errorBody?.error?.message || upstream.statusText
+      };
     }
-    let errorBody = null;
-    try { errorBody = await upstream.json(); } catch { /* non-JSON */ }
-    return res.status(502).json({
-      status: 'upstream_error',
-      upstreamStatus: upstream.status,
-      error: errorBody?.error?.message || upstream.statusText
-    });
   } catch (err) {
-    return res.status(502).json({
+    status = 502;
+    body = {
       status: 'unreachable',
       error: err.name === 'AbortError' ? 'timeout' : (err.message || String(err))
-    });
+    };
   }
+
+  upstreamHealthCache = {
+    expiresAt: now + UPSTREAM_HEALTH_CACHE_TTL_MS,
+    status,
+    body
+  };
+  return res.status(status).json(body);
 });
 
 app.use(limiter);
