@@ -81,7 +81,7 @@ Shank Strategy Ops Workbench v3.0
     const element = document.createElement("a");
     const file = new Blob([report], {type: 'text/plain'});
     element.href = URL.createObjectURL(file);
-    element.download = `Shank_Strategy_Executive_Brief_${brand.name.replace(/\s+/g, '_') || 'Business'}.txt`;
+    element.download = `Shank_Strategy_Executive_Brief_${(brand.name || 'Business').replace(/\s+/g, '_')}.txt`;
     document.body.appendChild(element);
     element.click();
     document.body.removeChild(element);

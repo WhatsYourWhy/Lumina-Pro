@@ -126,6 +126,13 @@ const App: React.FC = () => {
           supabase.from('global_intel').select('*').eq('id', user.id).single()
         ]);
 
+        if (brandRes.error && brandRes.error.code !== 'PGRST116') {
+          throw brandRes.error;
+        }
+        if (intelRes.error && intelRes.error.code !== 'PGRST116') {
+          throw intelRes.error;
+        }
+
         if (brandRes.data) {
           setBrand({
             name: brandRes.data.name || '',
@@ -240,9 +247,7 @@ const App: React.FC = () => {
 
     const { error } = await supabase.auth.signOut();
     if (error) {
-      console.warn('Supabase sign out failed', error);
-      toast.error('Unable to sign out. Please try again.');
-      return;
+      console.warn('Supabase sign out failed, signing out locally anyway', error);
     }
 
     resetClientState();
@@ -270,6 +275,21 @@ const App: React.FC = () => {
     { id: AppSection.VISUALS, label: 'Asset Studio', icon: ImageIcon },
     { id: AppSection.MARKET, label: 'Market Insights', icon: TrendingUp },
   ];
+
+  if (user && authLoading) {
+    return (
+      <div className="min-h-screen bg-[#020617] text-slate-200 flex flex-col items-center justify-center p-4">
+        <Toaster position="top-right" toastOptions={{ style: { background: '#1e293b', color: '#f8fafc', border: '1px solid #334155' } }} />
+        <div className="flex flex-col items-center gap-4 text-center">
+          <div className="relative">
+            <div className="w-16 h-16 border-4 border-slate-800 border-t-indigo-500 rounded-full animate-spin" />
+            <Activity className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-indigo-400 animate-pulse" size={24} />
+          </div>
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-indigo-400 mt-2 animate-pulse">Initializing Operations Core</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#020617] text-slate-200">

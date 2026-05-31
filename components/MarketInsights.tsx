@@ -84,12 +84,18 @@ const MarketInsights: React.FC<Props> = ({ brand, analysis, setAnalysis }) => {
       chunks.forEach((chunk: any) => { if (chunk.web) extractedSources.push({ web: chunk.web }); });
       setSources(extractedSources);
 
-      const rabbitResponse = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: `Based on this text: "${response.text}", generate 3 highly targeted, strategic follow-up questions for a consulting firm analyzing ${brand.name || 'a client'}. Return a JSON array of strings only.`,
-        config: { responseMimeType: "application/json" }
-      });
-      setRabbitHoles(JSON.parse(rabbitResponse.text));
+      try {
+        const rabbitResponse = await ai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: `Based on this text: "${response.text}", generate 3 highly targeted, strategic follow-up questions for a consulting firm analyzing ${brand.name || 'a client'}. Return a JSON array of strings only.`,
+          config: { responseMimeType: "application/json" }
+        });
+        const parsed = JSON.parse(rabbitResponse.text || '[]');
+        setRabbitHoles(Array.isArray(parsed) ? parsed : []);
+      } catch (rabbitErr) {
+        console.warn("Failed to generate drilldown questions", rabbitErr);
+        setRabbitHoles([]);
+      }
     } catch (error: any) {
       console.error(error);
       toast.error('Failed to analyze market. ' + (error.message || ''));
