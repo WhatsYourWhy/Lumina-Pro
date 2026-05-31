@@ -9,8 +9,11 @@ describe('Gemini Proxy Server', () => {
     expect(res.headers).toBeDefined();
   });
 
-  it('should have trust proxy enabled', () => {
-    expect(app.get('trust proxy')).toBe(1);
+  it('should not trust proxy by default', () => {
+    // trust proxy is gated behind the TRUST_PROXY env var to prevent
+    // X-Forwarded-For spoofing of req.ip when not actually behind a sanitizing proxy.
+    // Without TRUST_PROXY set, Express's default ("false") must be retained.
+    expect(app.get('trust proxy')).toBe(false);
   });
 
   it('should proxy requests and return 404 or target response depending on route', async () => {
