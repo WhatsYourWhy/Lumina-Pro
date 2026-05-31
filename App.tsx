@@ -15,7 +15,7 @@ import {
   Key
 } from 'lucide-react';
 import { getClientApiKey, setClientApiKey } from './lib/api';
-import { AppSection, BrandProfile } from './types';
+import { AppSection, BrandProfile, StrategicEntry, GlobalIntelState } from './types';
 import StrategyBoard from './components/StrategyBoard';
 import ContentStudio from './components/ContentStudio';
 import VisualStudio from './components/VisualStudio';
@@ -27,18 +27,6 @@ import ExportPDF from './components/ExportPDF';
 import { supabase } from './lib/supabase';
 import type { User } from '@supabase/supabase-js';
 
-interface StrategicEntry {
-  type: string;
-  timestamp: string;
-  content: string;
-}
-
-interface GlobalIntelState {
-  strategyHistory: StrategicEntry[];
-  marketAnalysis: string | null;
-  contentDrafts: string[];
-  logistics: string | null;
-}
 
 const createEmptyBrand = (): BrandProfile => ({ name: '', industry: '', description: '', tone: '' });
 const createEmptyGlobalIntel = (): GlobalIntelState => ({

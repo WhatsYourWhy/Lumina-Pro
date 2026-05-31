@@ -2,11 +2,12 @@ import React, { useRef, useState } from 'react';
 import { Download, Loader2 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
-import { BrandProfile } from '../types';
+import { BrandProfile, GlobalIntelState } from '../types';
+import toast from 'react-hot-toast';
 
 interface ExportProps {
   brand: BrandProfile;
-  intel: any;
+  intel: GlobalIntelState;
 }
 
 const formatTimestamp = (ts: string) => {
@@ -45,6 +46,7 @@ const ExportPDF: React.FC<ExportProps> = ({ brand, intel }) => {
       pdf.save(`${brand.name || 'Brand'}_Strategy_Report.pdf`);
     } catch (error) {
       console.error('Failed to export PDF', error);
+      toast.error('Failed to export PDF. Please try again.');
     } finally {
       if (printRef.current) printRef.current.style.display = 'none';
       setIsExporting(false);
