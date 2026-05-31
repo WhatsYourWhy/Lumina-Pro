@@ -44,7 +44,25 @@ const ContentStudio: React.FC<Props> = ({ brand, savedPosts, setSavedPosts }) =>
       });
       
       const content = response.text || '';
-      const splitPosts = content.split(/Post \d+:?/i).filter(p => p.trim().length > 10);
+      const matches = [...content.matchAll(/Post \d+:?/gi)];
+      const splitPosts: string[] = [];
+      if (matches.length > 0) {
+        for (let i = 0; i < matches.length; i++) {
+          const start = (matches[i].index || 0) + matches[i][0].length;
+          const end = i < matches.length - 1 ? matches[i + 1].index : content.length;
+          const postText = content.substring(start, end).trim();
+          if (postText.length > 10) {
+            splitPosts.push(postText);
+          }
+        }
+      } else {
+        const fallbackSplit = content.split(/\n\n+/).filter(p => p.trim().length > 20);
+        if (fallbackSplit.length > 0) {
+          splitPosts.push(...fallbackSplit.slice(0, 3));
+        } else if (content.trim().length > 10) {
+          splitPosts.push(content.trim());
+        }
+      }
       setSavedPosts([...splitPosts, ...savedPosts].slice(0, 9));
       toast.success('Generated drafts successfully!');
     } catch (error: any) {

@@ -79,12 +79,22 @@ const SupplyChainConsole: React.FC<Props> = ({ brand, intel, setIntel }) => {
       const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: `Analyze logistics and supply chain risks for: "${route}". Context: ${brand.name || 'Shank Strategy client'} in ${brand.industry || 'Logistics Operations'}. Identify transit bottlenecks, customs clearance nodes, port congestion, and risk mitigation strategies.`,
-        config: { tools: [{ googleMaps: {} }, { googleSearch: {} }] }
+        config: { tools: [{ googleMaps: {} }, { googleSearch: {} }] as any }
       });
       setIntel(response.text);
     } catch (e: any) {
-      console.error(e);
-      toast.error("Failed to analyze supply chain logic.");
+      console.warn("Failed with googleMaps tool, retrying with googleSearch only", e);
+      try {
+        const response = await ai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: `Analyze logistics and supply chain risks for: "${route}". Context: ${brand.name || 'Shank Strategy client'} in ${brand.industry || 'Logistics Operations'}. Identify transit bottlenecks, customs clearance nodes, port congestion, and risk mitigation strategies.`,
+          config: { tools: [{ googleSearch: {} }] }
+        });
+        setIntel(response.text);
+      } catch (fallbackError: any) {
+        console.error(fallbackError);
+        toast.error("Failed to analyze supply chain logic. " + (fallbackError.message || ''));
+      }
     } finally {
       setLoading(false);
     }
@@ -99,10 +109,28 @@ const SupplyChainConsole: React.FC<Props> = ({ brand, intel, setIntel }) => {
         contents: `Find CURRENT active logistical disruptions or bottlenecks affecting transit around/between: "${route}". Return a JSON array of objects with keys: "title", "summary", "severity" (choose from: high, medium, low). Keep response purely as JSON.`,
         config: { tools: [{ googleSearch: {} }], responseMimeType: "application/json" }
       });
-      setDisruptions(JSON.parse(response.text));
+      
+      let parsed = [];
+      const text = response.text || '';
+      try {
+        parsed = JSON.parse(text);
+      } catch (jsonErr) {
+        console.warn("Direct JSON parsing failed, attempting extraction", jsonErr);
+        const jsonMatch = text.match(/\[\s*\{.*\}\s*\]/s);
+        if (jsonMatch) {
+          try {
+            parsed = JSON.parse(jsonMatch[0]);
+          } catch (e2) {
+            throw jsonErr;
+          }
+        } else {
+          throw jsonErr;
+        }
+      }
+      setDisruptions(Array.isArray(parsed) ? parsed : []);
     } catch (e: any) {
       console.error(e);
-      toast.error("Failed to scan live alerts.");
+      toast.error("Failed to scan live alerts. " + (e.message || ''));
     } finally {
       setMonitoring(false);
     }
