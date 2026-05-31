@@ -8,7 +8,15 @@ import helmet from 'helmet';
 dotenv.config({ path: '.env.local' });
 
 const app = express();
-app.set('trust proxy', 1);
+// Only trust proxy headers when running behind a known/sanitizing reverse proxy.
+// Set TRUST_PROXY to an Express trust-proxy value (e.g. "1", "loopback", an IP, or "true").
+// Leaving it unset is the safe default: req.ip uses the socket address and cannot be
+// spoofed via X-Forwarded-For to bypass the rate limiter.
+const trustProxy = process.env.TRUST_PROXY;
+if (trustProxy) {
+  const numeric = Number(trustProxy);
+  app.set('trust proxy', Number.isFinite(numeric) ? numeric : trustProxy);
+}
 const port = process.env.PORT || 3001;
 
 const allowedOrigins = process.env.FRONTEND_URL ? [process.env.FRONTEND_URL, 'http://localhost:3000'] : ['http://localhost:3000'];

@@ -1,15 +1,14 @@
 import React, { useState } from 'react';
-import { Type } from '@google/genai';
 import { ai } from '../lib/api';
 import { config } from '../config';
 import { renderMarkdown } from '../lib/markdown';
 import { BrandProfile, LogisticsDisruption } from '../types';
 import toast from 'react-hot-toast';
-import { 
-  Truck, 
-  AlertTriangle, 
-  Loader2, 
-  Search, 
+import {
+  Truck,
+  AlertTriangle,
+  Loader2,
+  Search,
   Navigation,
   CheckCircle2,
   AlertCircle
@@ -37,16 +36,27 @@ const SupplyChainConsole: React.FC<Props> = ({ brand, intel, setIntel }) => {
     if (!route) return;
     setLoading(true);
     setIntel(null);
+    const prompt = `Analyze logistics and supply chain risks for: "${route}". Context: ${brand.name || 'Shank Strategy client'} in ${brand.industry || 'Logistics Operations'}. Identify transit bottlenecks, customs clearance nodes, port congestion, and risk mitigation strategies.`;
     try {
       const response = await ai.models.generateContent({
         model: config.models.defaultFlash,
-        contents: `Analyze logistics and supply chain risks for: "${route}". Context: ${brand.name || 'Shank Strategy client'} in ${brand.industry || 'Logistics Operations'}. Identify transit bottlenecks, customs clearance nodes, port congestion, and risk mitigation strategies.`,
-        config: { tools: [{ googleSearch: {} }] }
+        contents: prompt,
+        config: { tools: [{ googleMaps: {} }, { googleSearch: {} }] as any }
       });
       setIntel(response.text);
     } catch (e: any) {
-      console.error(e);
-      toast.error("Failed to analyze supply chain logic. " + (e.message || ''));
+      console.warn("Failed with googleMaps tool, retrying with googleSearch only", e);
+      try {
+        const fallback = await ai.models.generateContent({
+          model: config.models.defaultFlash,
+          contents: prompt,
+          config: { tools: [{ googleSearch: {} }] }
+        });
+        setIntel(fallback.text);
+      } catch (fallbackError: any) {
+        console.error(fallbackError);
+        toast.error("Failed to analyze supply chain logic. " + (fallbackError.message || ''));
+      }
     } finally {
       setLoading(false);
     }
@@ -58,25 +68,13 @@ const SupplyChainConsole: React.FC<Props> = ({ brand, intel, setIntel }) => {
     try {
       const response = await ai.models.generateContent({
         model: config.models.defaultFlash,
-        contents: `Find CURRENT active logistical disruptions or bottlenecks affecting transit around/between: "${route}". Return a JSON array of objects with keys: "title", "summary", "severity" (choose from: high, medium, low). Keep response purely as JSON.`,
-        config: { 
-          tools: [{ googleSearch: {} }], 
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                title: { type: Type.STRING },
-                summary: { type: Type.STRING },
-                severity: { type: Type.STRING }
-              },
-              required: ["title", "summary", "severity"]
-            }
-          }
+        contents: `Find CURRENT active logistical disruptions or bottlenecks affecting transit around/between: "${route}". Return ONLY a JSON array of objects with keys: "title", "summary", "severity" (choose from: high, medium, low). No prose, no code fences — just the JSON array.`,
+        config: {
+          tools: [{ googleSearch: {} }],
+          responseMimeType: "application/json"
         }
       });
-      
+
       let parsed = [];
       const text = response.text || '';
       try {
@@ -115,26 +113,26 @@ const SupplyChainConsole: React.FC<Props> = ({ brand, intel, setIntel }) => {
             </div>
           </div>
           <div className="flex gap-2">
-            <input 
-              value={route} 
-              onChange={(e) => setRoute(e.target.value)} 
-              placeholder="Transit Hubs, Ports, or Route Corridors..." 
-              className="flex-1 bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-3 text-sm focus:outline-none transition-colors text-slate-200" 
+            <input
+              value={route}
+              onChange={(e) => setRoute(e.target.value)}
+              placeholder="Transit Hubs, Ports, or Route Corridors..."
+              className="flex-1 bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-3 text-sm focus:outline-none transition-colors text-slate-200"
             />
-            <button 
-              onClick={analyzeSupplyChain} 
+            <button
+              onClick={analyzeSupplyChain}
               disabled={loading || !route}
               className="px-5 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition-colors border border-slate-700"
             >
-              {loading ? <Loader2 className="animate-spin" size={16}/> : <Search size={16}/>} 
+              {loading ? <Loader2 className="animate-spin" size={16}/> : <Search size={16}/>}
               Analyze
             </button>
-            <button 
-              onClick={checkAlerts} 
+            <button
+              onClick={checkAlerts}
               disabled={monitoring || !route}
               className="px-5 bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-white rounded-xl text-xs font-black flex items-center gap-2 transition-all active:scale-[0.98]"
             >
-              {monitoring ? <Loader2 className="animate-spin" size={16}/> : <Navigation size={16}/>} 
+              {monitoring ? <Loader2 className="animate-spin" size={16}/> : <Navigation size={16}/>}
               Scan Live
             </button>
           </div>
@@ -185,16 +183,16 @@ const SupplyChainConsole: React.FC<Props> = ({ brand, intel, setIntel }) => {
             </h3>
             {monitoring && <span className="text-[9px] font-black text-amber-500 uppercase animate-pulse">Scanning Geofences...</span>}
           </div>
-          
+
           <div className="flex-1 space-y-3">
             {disruptions.length > 0 ? (
               <div className="space-y-3 animate-in fade-in duration-500">
                 {disruptions.map((d, i) => {
-                  const severityColors = 
+                  const severityColors =
                     d.severity === 'high' ? 'bg-red-500/10 border-red-500/20 text-red-400' :
                     d.severity === 'medium' ? 'bg-amber-500/10 border-amber-500/20 text-amber-400' :
                     'bg-sky-500/10 border-sky-500/20 text-sky-400';
-                  
+
                   return (
                     <div key={i} className="p-4 bg-slate-900/60 border border-slate-800 rounded-xl space-y-2 hover:border-slate-700 transition-colors">
                       <div className="flex justify-between items-start gap-2">

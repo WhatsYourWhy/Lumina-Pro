@@ -15,6 +15,7 @@ interface Props {
 
 
 
+
 const MarketInsights: React.FC<Props> = ({ brand, analysis, setAnalysis }) => {
   const defaultQuery = brand.industry 
     ? `What are the latest 2025-2026 operational trends and logistics forecasts for the ${brand.industry} industry?`
