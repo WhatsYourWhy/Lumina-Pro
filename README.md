@@ -1,67 +1,168 @@
 # Shank Strategy Ops LLC | Operations & Consulting Workbench
 
-A full-stack, state-of-the-art AI consulting and logistics workbench designed specifically for **Shank Strategy Ops LLC**. It features automated market analysis, visual slide concept generation, live supply chain disruption monitoring, and custom corporate consulting frameworks (SWOT, SCOR, PESTEL, DMAIC, and BULLWHIP).
+A full-stack AI consulting and logistics workbench for **Shank Strategy Ops LLC**. It features automated market analysis, visual slide concept generation, live supply chain disruption monitoring, and custom corporate consulting frameworks (SWOT, SCOR, PESTEL, DMAIC, and BULLWHIP).
 
 ---
 
 ## Key Features & Capabilities
 
-This workbench combines business intelligence and supply chain operations into a unified strategic dashboard:
+1. **Strategy Hub**
+   - **Client Discovery Sync** — Scrapes public brand information (industry, description, tone) using search-grounded Gemini models.
+   - **Executive Consulting Frameworks** — Generates SWOT, SCOR (logistics), PESTEL (macro-environment), DMAIC (Lean Six Sigma), and BULLWHIP (supply chain volatility) briefs using `gemini-2.5-pro-preview` with an active reasoning budget.
+   - **Markdown Rendering** — Formats consulting briefs into rich typography (bullet points, headers, bold accents, divider rules).
 
-1. **Strategy Hub**:
-   - **Client Discovery Sync**: Automatically scrapes public brand information (industry, description, tone) using search-grounded Gemini models.
-   - **Executive Consulting Frameworks**: Generates high-density strategic outputs including SWOT, SCOR (logistics), PESTEL (macro-environment), DMAIC (Lean Six Sigma process improvements), and BULLWHIP (supply chain volatility risk) briefs using `gemini-3-pro-preview` with an active reasoning budget.
-   - **Markdown Rendering**: Formats consulting briefs into rich typography (bullet points, clear headers, bold accents, divider rules).
-2. **Logistics Risk Console**:
-   - **Operational Risk Summary**: Analyzes custom routing nodes, ports, and transit corridors using `gemini-2.5-flash` grounded in Google Maps and Google Search.
-   - **Disruption Radar**: Scans for live geological or transit bottlenecks in real-time, displaying them with styled risk severity badges (high, medium, low).
-   - **Route Corridors**: Includes quick-select presets for transpacific marine lanes, European rail networks, and NAFTA highways.
-3. **Creative Asset Studio**:
-   - **Content Studio**: Generates tone-customized LinkedIn copywriting drafts (Thought Leadership, Technical/Operational, Risk/Mitigation, Visionary).
-   - **Visual Concept Studio**: Generates high-quality branded slide graphics, presentation backgrounds, and logistics mockups using `gemini-2.5-flash-image` with commercial style presets.
+2. **Logistics Risk Console**
+   - **Operational Risk Summary** — Analyzes custom routing nodes, ports, and transit corridors using `gemini-2.5-flash` grounded in Google Search.
+   - **Disruption Radar** — Scans for live geological or transit bottlenecks in real-time, displaying them with styled risk severity badges (high, medium, low).
+   - **Route Corridors** — Includes quick-select presets for transpacific marine lanes, European rail networks, and NAFTA highways.
+
+3. **Creative Asset Studio**
+   - **Content Studio** — Generates tone-customized LinkedIn copywriting drafts (Thought Leadership, Technical/Operational, Risk/Mitigation, Visionary).
+   - **Visual Concept Studio** — Generates high-quality branded slide graphics, presentation backgrounds, and logistics mockups using `imagen-3.0-generate-002` with commercial style presets.
 
 ---
 
 ## Technical Architecture
 
-* **Frontend**: React (Vite) + Tailwind CSS v4 + Lucide Icons.
-* **Backend Security Proxy**: Express.js server providing a rate-limited reverse proxy that acts as a bridge to the Google GenAI REST & WebSocket endpoints. It securely injects the `GEMINI_API_KEY` header at the edge, keeping credentials safe.
-* **Database & Synchronization**: Supabase (PostgreSQL) partitions user configurations and strategic briefing histories, utilizing debounced state syncs (1.5s) to prevent data loss.
-* **Document Exporting**: Direct client-side PDF Report generation via `html2canvas` and `jsPDF`.
+| Layer | Technology |
+|---|---|
+| **Frontend** | React 19 · Vite · Tailwind CSS v4 · Lucide Icons |
+| **Backend Proxy** | Express 5 — rate-limited reverse proxy injecting the Gemini API key at the edge |
+| **Database** | Supabase (PostgreSQL) with Row Level Security and debounced state sync (1.5 s) |
+| **PDF Export** | Client-side via `html2canvas` + `jsPDF` |
+| **AI Models** | Configured centrally in `config.ts` (see below) |
+
+### Centralized Model Configuration
+
+All model identifiers are maintained in [`config.ts`](config.ts):
+
+```ts
+export const config = {
+  models: {
+    defaultPro:   'gemini-2.5-pro-preview',
+    defaultFlash: 'gemini-2.5-flash',
+    defaultImage: 'imagen-3.0-generate-002',
+  }
+};
+```
+
+---
+
+## Project Structure
+
+```
+Lumina-Pro/
+├── index.html              # HTML entry point (loads index.tsx)
+├── index.tsx               # React root render
+├── index.css               # Global CSS / Tailwind imports
+├── App.tsx                 # Main app shell, routing, and state management
+├── config.ts               # Centralized AI model configuration
+├── types.ts                # Shared TypeScript interfaces
+├── server.js               # Express reverse-proxy server
+├── supabase_schema.sql     # Database DDL for Supabase
+├── run-shank-strategy.bat  # One-click Windows launcher
+│
+├── components/
+│   ├── Auth.tsx             # Authentication gate (Supabase or offline mode)
+│   ├── Overview.tsx         # Dashboard overview panel
+│   ├── StrategyBoard.tsx    # SWOT / SCOR / PESTEL / DMAIC / BULLWHIP
+│   ├── MarketInsights.tsx   # Market intelligence console
+│   ├── SupplyChainConsole.tsx # Logistics risk & disruption monitor
+│   ├── ContentStudio.tsx    # LinkedIn copywriting generator
+│   ├── VisualStudio.tsx     # Image / slide concept generator
+│   ├── ExportPDF.tsx        # PDF report exporter
+│   └── ErrorBoundary.tsx    # React error boundary wrapper
+│
+├── lib/
+│   ├── api.ts               # Gemini SDK wrapper & proxy routing logic
+│   ├── supabase.ts          # Supabase client with offline fallback
+│   ├── markdown.tsx         # Shared markdown-to-JSX renderer
+│   ├── api.test.ts          # Tests for API client
+│   └── markdown.test.tsx    # Tests for markdown renderer
+│
+├── vite.config.ts           # Vite + Tailwind + Vitest configuration
+├── tsconfig.json            # TypeScript compiler options
+├── package.json             # Dependencies and npm scripts
+└── .env.local               # Environment secrets (not committed)
+```
 
 ---
 
 ## Setup Instructions
 
 ### 1. Install Dependencies
+
 ```bash
 npm install
 ```
 
-### 2. Configure Environment Keys
-Create a `.env.local` file in the root directory:
+### 2. Configure Environment Variables
 
-```env
-# Gemini Configuration (Server-side proxy only)
-GEMINI_API_KEY=your_gemini_api_key
+Copy the example file and fill in your keys:
 
-# Supabase Configuration (Client-side client)
-VITE_SUPABASE_URL=your_supabase_project_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+```bash
+cp .env.example .env.local
 ```
 
-### 3. Initialize the Database
-1. Copy the SQL commands from `supabase_schema.sql`.
-2. Execute the script inside your Supabase project's **SQL Editor** to provision the `brand_profiles` and `global_intel` tables along with the Row Level Security (RLS) policies and triggers.
+| Variable | Required | Used by | Description |
+|---|---|---|---|
+| `GEMINI_API_KEY` | **Yes** | `server.js` | Google AI API key — injected by the proxy, never exposed to the browser |
+| `VITE_SUPABASE_URL` | No* | Frontend | Supabase project URL. Without it the app falls back to offline mode |
+| `VITE_SUPABASE_ANON_KEY` | No* | Frontend | Supabase anonymous key |
+| `PORT` | No | `server.js` | Proxy server port (default `3001`) |
+| `TRUST_PROXY` | No | `server.js` | Express `trust proxy` setting for deployments behind a reverse proxy (e.g. `1`, `loopback`). Leave unset for local development |
+| `FRONTEND_URL` | No | `server.js` | Additional allowed CORS origin for production deployments. `http://localhost:3000` is always allowed |
+| `NODE_ENV` | No | `server.js` | When set to `test`, the proxy is exported without calling `app.listen()` so Vitest can mount it. Leave unset for normal dev/prod runs |
+
+> \* The app runs in **offline mode** when Supabase keys are missing. Auth and persistence are disabled but all AI features remain functional.
+
+### 3. Initialize the Database (Optional)
+
+If using Supabase for persistence:
+
+1. Open your Supabase project's **SQL Editor**.
+2. Paste and run the contents of [`supabase_schema.sql`](supabase_schema.sql) to create the `brand_profiles` and `global_intel` tables with Row Level Security policies.
 
 ### 4. Run the Application
-Start the concurrently managed stack (Vite frontend on port `3000`, Express proxy server on port `3001`):
+
+Start the concurrent dev stack (Vite on port `3000`, Express proxy on port `3001`):
+
 ```bash
 npm run dev
 ```
 
+**Windows shortcut:** Double-click [`run-shank-strategy.bat`](run-shank-strategy.bat) to auto-install dependencies, launch both servers, and open the browser.
+
 ### 5. Run Tests
-Verify the stability of the React component rendering and Express API proxy routing:
+
 ```bash
 npm run test
 ```
+
+---
+
+## Available Scripts
+
+| Command | Description |
+|---|---|
+| `npm run dev` | Start frontend + proxy concurrently |
+| `npm run server` | Start the Express proxy server only |
+| `npm run build` | Production Vite build |
+| `npm run preview` | Preview the production build locally |
+| `npm run test` | Run Vitest test suite |
+
+---
+
+## Proxy Architecture
+
+The frontend never holds the Gemini API key. Instead, all AI requests flow through the Express proxy:
+
+```
+Browser  ──▶  Vite dev server (/api/*)  ──▶  Express proxy (:3001)  ──▶  Google GenAI API
+                                                  │
+                                          Injects x-goog-api-key
+                                          Rate-limits (100 req / 15 min)
+                                          Helmet security headers
+```
+
+Users can also paste a personal API key in the app UI, which bypasses the proxy and calls Google directly from the browser.
