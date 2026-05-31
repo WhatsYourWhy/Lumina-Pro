@@ -30,8 +30,59 @@ const limiter = rateLimit({
   message: { error: 'Too many requests from this IP, please try again after 15 minutes' }
 });
 
-app.use(limiter);
+// Health endpoints — registered BEFORE the rate limiter and key-gate so that
+// monitoring works even when the upstream key is missing and never burns the
+// per-IP request budget. Both endpoints are intentionally cheap.
+const startedAt = Date.now();
 
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    uptimeSeconds: Math.round((Date.now() - startedAt) / 1000),
+    geminiKeyConfigured: !!process.env.GEMINI_API_KEY,
+    trustProxy: app.get('trust proxy') ?? false,
+    allowedOrigins,
+    nodeEnv: process.env.NODE_ENV || 'development'
+  });
+});
+
+// Deep health — actually pings Google with the configured key. Uses the model
+// listing endpoint (no inference cost, no quota burn) to verify the key is
+// accepted upstream. Hit this when /health looks fine but real API calls fail.
+app.get('/health/upstream', async (req, res) => {
+  if (!process.env.GEMINI_API_KEY) {
+    return res.status(503).json({
+      status: 'misconfigured',
+      reason: 'GEMINI_API_KEY is not set'
+    });
+  }
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    const upstream = await fetch('https://generativelanguage.googleapis.com/v1beta/models', {
+      headers: { 'x-goog-api-key': process.env.GEMINI_API_KEY },
+      signal: controller.signal
+    });
+    clearTimeout(timeout);
+    if (upstream.ok) {
+      return res.json({ status: 'ok', upstreamStatus: upstream.status });
+    }
+    let errorBody = null;
+    try { errorBody = await upstream.json(); } catch { /* non-JSON */ }
+    return res.status(502).json({
+      status: 'upstream_error',
+      upstreamStatus: upstream.status,
+      error: errorBody?.error?.message || upstream.statusText
+    });
+  } catch (err) {
+    return res.status(502).json({
+      status: 'unreachable',
+      error: err.name === 'AbortError' ? 'timeout' : (err.message || String(err))
+    });
+  }
+});
+
+app.use(limiter);
 
 // Fail fast with a clear message when no upstream key is configured.
 app.use((req, res, next) => {

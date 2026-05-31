@@ -153,6 +153,29 @@ npm run test
 
 ---
 
+## Health Checks
+
+The proxy exposes two health endpoints (registered before the rate limiter and key gate, so monitoring never burns the per-IP request budget and works even when the upstream key is missing):
+
+| Endpoint | Cost | Reports |
+|---|---|---|
+| `GET /health` | none | Process uptime, whether `GEMINI_API_KEY` is loaded, trust-proxy setting, allowed CORS origins, `NODE_ENV` |
+| `GET /health/upstream` | one Google `models.list` call (no inference, no quota) | Whether the configured Gemini key is actually accepted by Google |
+
+Quick checks:
+
+```bash
+# Is the proxy alive and did it pick up .env.local?
+curl http://localhost:3001/health
+
+# Is the key actually valid as far as Google is concerned?
+curl http://localhost:3001/health/upstream
+```
+
+`/health/upstream` returns `200 ok` on success, `502 upstream_error` (with Google's error message) when the key is rejected, `502 unreachable` on network failure, and `503 misconfigured` when no key is loaded at all.
+
+---
+
 ## Proxy Architecture
 
 The frontend never holds the Gemini API key. Instead, all AI requests flow through the Express proxy:
