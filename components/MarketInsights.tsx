@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
+import { Type } from '@google/genai';
 import { ai } from '../lib/api';
+import { config } from '../config';
+import { renderMarkdown } from '../lib/markdown';
 import { BrandProfile, GroundingSource } from '../types';
 import toast from 'react-hot-toast';
 import { Search, Globe, Loader2, Lightbulb, TrendingUp } from 'lucide-react';
@@ -10,46 +13,7 @@ interface Props {
   setAnalysis: (a: string | null) => void;
 }
 
-const parseBold = (text: string): React.ReactNode[] => {
-  const parts = text.split('**');
-  return parts.map((part, i) => {
-    if (i % 2 === 1) {
-      return <strong key={i} className="font-bold text-indigo-300">{part}</strong>;
-    }
-    return part;
-  });
-};
 
-const renderMarkdown = (text: string): React.ReactNode => {
-  const lines = text.split('\n');
-  return (
-    <div className="space-y-4 text-slate-300">
-      {lines.map((line, index) => {
-        const trimmed = line.trim();
-        if (trimmed.startsWith('### ')) {
-          return <h4 key={index} className="text-sm font-bold text-indigo-400 mt-5 mb-2">{parseBold(trimmed.replace('### ', ''))}</h4>;
-        }
-        if (trimmed.startsWith('## ')) {
-          return <h3 key={index} className="text-base font-black text-white mt-7 mb-2.5 border-b border-slate-800 pb-1">{parseBold(trimmed.replace('## ', ''))}</h3>;
-        }
-        if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
-          return (
-            <li key={index} className="list-disc ml-5 mb-1.5 text-slate-300 leading-relaxed text-xs">
-              {parseBold(trimmed.substring(2))}
-            </li>
-          );
-        }
-        if (trimmed === '---') {
-          return <hr key={index} className="my-5 border-slate-800" />;
-        }
-        if (trimmed === '') {
-          return <div key={index} className="h-0.5" />;
-        }
-        return <p key={index} className="leading-relaxed mb-2 text-xs text-slate-300">{parseBold(line)}</p>;
-      })}
-    </div>
-  );
-};
 
 const MarketInsights: React.FC<Props> = ({ brand, analysis, setAnalysis }) => {
   const defaultQuery = brand.industry 
@@ -72,7 +36,7 @@ const MarketInsights: React.FC<Props> = ({ brand, analysis, setAnalysis }) => {
     setAnalysis(null);
     try {
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: config.models.defaultFlash,
         contents: query,
         config: { tools: [{ googleSearch: {} }] }
       });
@@ -86,9 +50,15 @@ const MarketInsights: React.FC<Props> = ({ brand, analysis, setAnalysis }) => {
 
       try {
         const rabbitResponse = await ai.models.generateContent({
-          model: 'gemini-2.5-flash',
+          model: config.models.defaultFlash,
           contents: `Based on this text: "${response.text}", generate 3 highly targeted, strategic follow-up questions for a consulting firm analyzing ${brand.name || 'a client'}. Return a JSON array of strings only.`,
-          config: { responseMimeType: "application/json" }
+          config: { 
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING }
+            }
+          }
         });
         const parsed = JSON.parse(rabbitResponse.text || '[]');
         setRabbitHoles(Array.isArray(parsed) ? parsed : []);
@@ -170,7 +140,7 @@ const MarketInsights: React.FC<Props> = ({ brand, analysis, setAnalysis }) => {
                 </div>
               ) : analysis ? (
                 <div className="animate-in fade-in duration-500">
-                  {renderMarkdown(analysis)}
+                  {renderMarkdown(analysis, true)}
                 </div>
               ) : (
                 <div className="h-full flex flex-col items-center justify-center opacity-20 text-center py-20 grayscale">

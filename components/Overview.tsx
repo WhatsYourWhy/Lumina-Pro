@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { BrandProfile, AppSection } from '../types';
+import { BrandProfile, AppSection, GlobalIntelState } from '../types';
 import { 
   Briefcase,
   ChevronRight,
@@ -18,12 +18,7 @@ import {
 
 interface Props {
   brand: BrandProfile;
-  intel: {
-    strategyHistory: { type: string; timestamp: string; content: string }[];
-    marketAnalysis: string | null;
-    contentDrafts: string[];
-    logistics: string | null;
-  };
+  intel: GlobalIntelState;
   onNavigate?: (section: AppSection) => void;
 }
 

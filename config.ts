@@ -1,6 +1,7 @@
 export const config = {
   models: {
-    default: 'gemini-3-pro-preview',
-    vision: 'gemini-3-pro-preview', // Update if a specific vision model is needed
+    defaultPro: 'gemini-2.5-pro-preview',
+    defaultFlash: 'gemini-2.5-flash',
+    defaultImage: 'imagen-3.0-generate-002',
   }
 };

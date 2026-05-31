@@ -8,6 +8,7 @@ import helmet from 'helmet';
 dotenv.config({ path: '.env.local' });
 
 const app = express();
+app.set('trust proxy', 1);
 const port = process.env.PORT || 3001;
 
 const allowedOrigins = process.env.FRONTEND_URL ? [process.env.FRONTEND_URL, 'http://localhost:3000'] : ['http://localhost:3000'];

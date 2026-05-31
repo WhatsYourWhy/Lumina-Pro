@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Type } from "@google/genai";
 import { ai } from '../lib/api';
+import { config } from '../config';
+import { renderMarkdown } from '../lib/markdown';
 import { BrandProfile } from '../types';
 import toast from 'react-hot-toast';
 import { 
@@ -19,50 +21,6 @@ interface Props {
   onNewEntry: (entry: { type: string; timestamp: string; content: string }) => void;
 }
 
-const parseBold = (text: string): React.ReactNode[] => {
-  const parts = text.split('**');
-  return parts.map((part, i) => {
-    if (i % 2 === 1) {
-      return <strong key={i} className="font-bold text-indigo-300">{part}</strong>;
-    }
-    return part;
-  });
-};
-
-const renderMarkdown = (text: string): React.ReactNode => {
-  const lines = text.split('\n');
-  return (
-    <div className="space-y-4 text-slate-300">
-      {lines.map((line, index) => {
-        const trimmed = line.trim();
-        if (trimmed.startsWith('### ')) {
-          return <h4 key={index} className="text-base font-bold text-indigo-400 mt-6 mb-2">{parseBold(trimmed.replace('### ', ''))}</h4>;
-        }
-        if (trimmed.startsWith('## ')) {
-          return <h3 key={index} className="text-lg font-black text-white mt-8 mb-3 border-b border-slate-800/80 pb-1.5">{parseBold(trimmed.replace('## ', ''))}</h3>;
-        }
-        if (trimmed.startsWith('# ')) {
-          return <h2 key={index} className="text-xl font-black text-white mt-10 mb-4">{parseBold(trimmed.replace('# ', ''))}</h2>;
-        }
-        if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
-          const cleanText = trimmed.substring(2);
-          return (
-            <li key={index} className="list-disc ml-5 mb-1.5 text-slate-300 leading-relaxed">
-              {parseBold(cleanText)}
-            </li>
-          );
-        }
-        if (trimmed === '---') {
-          return <hr key={index} className="my-6 border-slate-800" />;
-        }
-        if (trimmed === '') {
-          return <div key={index} className="h-1" />;
-        }
-        return <p key={index} className="leading-relaxed mb-2 text-slate-300">{parseBold(line)}</p>;
-      })}
-    </div>
-  );
-};
 
 const formatTimestamp = (ts: string) => {
   const date = new Date(ts);
@@ -87,13 +45,13 @@ const StrategyBoard: React.FC<Props> = ({ brand, setBrand, history, onNewEntry }
     setError(null);
     try {
       const searchResponse = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: config.models.defaultFlash,
         contents: `Perform deep web research on the company "${brand.name}". Identify their primary industry, core business model, and brand tone.`,
         config: { tools: [{ googleSearch: {} }] }
       });
 
       const extractResponse = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: config.models.defaultFlash,
         contents: `Extract business profile data from this text: "${searchResponse.text}"`,
         config: { 
           responseMimeType: "application/json",
@@ -112,6 +70,7 @@ const StrategyBoard: React.FC<Props> = ({ brand, setBrand, history, onNewEntry }
       const data = JSON.parse(extractResponse.text);
       setBrand({ ...brand, ...data });
     } catch (e) { 
+      console.error("Brand discovery failed:", e);
       setError("Discovery phase failed. Please check company name or enter details manually.");
       toast.error("Discovery phase failed.");
     } finally { 
@@ -140,7 +99,7 @@ const StrategyBoard: React.FC<Props> = ({ brand, setBrand, history, onNewEntry }
       }
 
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-pro-preview',
+        model: config.models.defaultPro,
         contents: prompt,
         config: {
           thinkingConfig: { thinkingBudget: 4000 },
@@ -159,6 +118,7 @@ const StrategyBoard: React.FC<Props> = ({ brand, setBrand, history, onNewEntry }
       });
       setDisplayIndex(0);
     } catch (e: any) { 
+      console.error("Strategic synthesis failed:", e);
       setError("Strategic synthesis interrupted. Check connectivity.");
       toast.error("Strategic synthesis interrupted.");
     } finally { 
@@ -222,15 +182,15 @@ const StrategyBoard: React.FC<Props> = ({ brand, setBrand, history, onNewEntry }
               <div className="pt-2 space-y-2">
                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Strategy Frameworks</p>
                 <div className="grid grid-cols-2 gap-2">
-                  <button onClick={() => generateConsultingFramework('SWOT')} className="py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-[10px] font-bold transition-colors">SWOT</button>
-                  <button onClick={() => generateConsultingFramework('SCOR')} className="py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-[10px] font-bold transition-colors">SCOR (Logistics)</button>
-                  <button onClick={() => generateConsultingFramework('PESTEL')} className="py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-[10px] font-bold transition-colors">PESTEL</button>
-                  <button onClick={() => generateConsultingFramework('DMAIC')} className="py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-[10px] font-bold transition-colors">DMAIC</button>
+                  <button disabled={loading || !brand.name} onClick={() => generateConsultingFramework('SWOT')} className="py-2.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white rounded-lg text-[10px] font-bold transition-colors">SWOT</button>
+                  <button disabled={loading || !brand.name} onClick={() => generateConsultingFramework('SCOR')} className="py-2.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white rounded-lg text-[10px] font-bold transition-colors">SCOR (Logistics)</button>
+                  <button disabled={loading || !brand.name} onClick={() => generateConsultingFramework('PESTEL')} className="py-2.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white rounded-lg text-[10px] font-bold transition-colors">PESTEL</button>
+                  <button disabled={loading || !brand.name} onClick={() => generateConsultingFramework('DMAIC')} className="py-2.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white rounded-lg text-[10px] font-bold transition-colors">DMAIC</button>
                 </div>
                 <button 
                   onClick={() => generateConsultingFramework('BULLWHIP')} 
                   disabled={loading || !brand.name}
-                  className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-[10px] font-bold transition-colors"
+                  className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white rounded-lg text-[10px] font-bold transition-colors"
                 >
                   Bullwhip Effect Risk
                 </button>

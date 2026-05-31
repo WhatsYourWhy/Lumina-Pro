@@ -9,6 +9,10 @@ describe('Gemini Proxy Server', () => {
     expect(res.headers).toBeDefined();
   });
 
+  it('should have trust proxy enabled', () => {
+    expect(app.get('trust proxy')).toBe(1);
+  });
+
   it('should proxy requests and return 404 or target response depending on route', async () => {
     // We expect the proxy middleware to attempt routing to Gemini. 
     // Without a real key or payload, it might return a specific error from supertest/Gemini.

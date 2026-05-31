@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
+import { Type } from '@google/genai';
 import { ai } from '../lib/api';
-import { BrandProfile } from '../types';
+import { config } from '../config';
+import { renderMarkdown } from '../lib/markdown';
+import { BrandProfile, LogisticsDisruption } from '../types';
 import toast from 'react-hot-toast';
 import { 
   Truck, 
@@ -18,52 +21,11 @@ interface Props {
   setIntel: (i: string | null) => void;
 }
 
-const parseBold = (text: string): React.ReactNode[] => {
-  const parts = text.split('**');
-  return parts.map((part, i) => {
-    if (i % 2 === 1) {
-      return <strong key={i} className="font-bold text-indigo-300">{part}</strong>;
-    }
-    return part;
-  });
-};
-
-const renderMarkdown = (text: string): React.ReactNode => {
-  const lines = text.split('\n');
-  return (
-    <div className="space-y-3 text-slate-300">
-      {lines.map((line, index) => {
-        const trimmed = line.trim();
-        if (trimmed.startsWith('### ')) {
-          return <h4 key={index} className="text-[13px] font-bold text-indigo-400 mt-4 mb-1.5">{parseBold(trimmed.replace('### ', ''))}</h4>;
-        }
-        if (trimmed.startsWith('## ')) {
-          return <h3 key={index} className="text-sm font-black text-white mt-6 mb-2 border-b border-slate-800 pb-1">{parseBold(trimmed.replace('## ', ''))}</h3>;
-        }
-        if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
-          return (
-            <li key={index} className="list-disc ml-4 mb-1 text-slate-300 leading-relaxed text-xs">
-              {parseBold(trimmed.substring(2))}
-            </li>
-          );
-        }
-        if (trimmed === '---') {
-          return <hr key={index} className="my-4 border-slate-800" />;
-        }
-        if (trimmed === '') {
-          return <div key={index} className="h-0.5" />;
-        }
-        return <p key={index} className="leading-relaxed mb-1.5 text-xs text-slate-300">{parseBold(line)}</p>;
-      })}
-    </div>
-  );
-};
-
 const SupplyChainConsole: React.FC<Props> = ({ brand, intel, setIntel }) => {
   const [route, setRoute] = useState('');
   const [loading, setLoading] = useState(false);
   const [monitoring, setMonitoring] = useState(false);
-  const [disruptions, setDisruptions] = useState<any[]>([]);
+  const [disruptions, setDisruptions] = useState<LogisticsDisruption[]>([]);
 
   const routePresets = [
     { label: 'Transpacific Marine Corridor', route: 'Shanghai Port (PVG/SGH) to Port of Los Angeles (LAX)' },
@@ -77,24 +39,14 @@ const SupplyChainConsole: React.FC<Props> = ({ brand, intel, setIntel }) => {
     setIntel(null);
     try {
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: config.models.defaultFlash,
         contents: `Analyze logistics and supply chain risks for: "${route}". Context: ${brand.name || 'Shank Strategy client'} in ${brand.industry || 'Logistics Operations'}. Identify transit bottlenecks, customs clearance nodes, port congestion, and risk mitigation strategies.`,
-        config: { tools: [{ googleMaps: {} }, { googleSearch: {} }] as any }
+        config: { tools: [{ googleSearch: {} }] }
       });
       setIntel(response.text);
     } catch (e: any) {
-      console.warn("Failed with googleMaps tool, retrying with googleSearch only", e);
-      try {
-        const response = await ai.models.generateContent({
-          model: 'gemini-2.5-flash',
-          contents: `Analyze logistics and supply chain risks for: "${route}". Context: ${brand.name || 'Shank Strategy client'} in ${brand.industry || 'Logistics Operations'}. Identify transit bottlenecks, customs clearance nodes, port congestion, and risk mitigation strategies.`,
-          config: { tools: [{ googleSearch: {} }] }
-        });
-        setIntel(response.text);
-      } catch (fallbackError: any) {
-        console.error(fallbackError);
-        toast.error("Failed to analyze supply chain logic. " + (fallbackError.message || ''));
-      }
+      console.error(e);
+      toast.error("Failed to analyze supply chain logic. " + (e.message || ''));
     } finally {
       setLoading(false);
     }
@@ -105,9 +57,24 @@ const SupplyChainConsole: React.FC<Props> = ({ brand, intel, setIntel }) => {
     setMonitoring(true);
     try {
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: config.models.defaultFlash,
         contents: `Find CURRENT active logistical disruptions or bottlenecks affecting transit around/between: "${route}". Return a JSON array of objects with keys: "title", "summary", "severity" (choose from: high, medium, low). Keep response purely as JSON.`,
-        config: { tools: [{ googleSearch: {} }], responseMimeType: "application/json" }
+        config: { 
+          tools: [{ googleSearch: {} }], 
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                title: { type: Type.STRING },
+                summary: { type: Type.STRING },
+                severity: { type: Type.STRING }
+              },
+              required: ["title", "summary", "severity"]
+            }
+          }
+        }
       });
       
       let parsed = [];
@@ -199,7 +166,7 @@ const SupplyChainConsole: React.FC<Props> = ({ brand, intel, setIntel }) => {
           <div className="flex-1 text-slate-400">
             {intel ? (
               <div className="animate-in fade-in duration-500">
-                {renderMarkdown(intel)}
+                {renderMarkdown(intel, true)}
               </div>
             ) : (
               <div className="h-full flex flex-col items-center justify-center opacity-20 text-center py-20 grayscale">

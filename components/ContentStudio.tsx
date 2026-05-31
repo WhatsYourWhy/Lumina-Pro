@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ai } from '../lib/api';
+import { config } from '../config';
 import { BrandProfile } from '../types';
 import toast from 'react-hot-toast';
 import { Linkedin, Send, Copy, Loader2, Award } from 'lucide-react';
@@ -33,7 +34,7 @@ const ContentStudio: React.FC<Props> = ({ brand, savedPosts, setSavedPosts }) =>
         'Write in a standard authoritative thought-leadership business consulting tone.';
 
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-pro-preview',
+        model: config.models.defaultPro,
         contents: `Create 3 engaging professional LinkedIn posts for the company "${brand.name || 'Shank Strategy'}" in the "${brand.industry || 'Management Consulting'}" sector. 
         Topic: "${topic}". 
         

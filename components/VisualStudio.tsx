@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ai } from '../lib/api';
+import { config } from '../config';
 import { BrandProfile } from '../types';
 import toast from 'react-hot-toast';
 import { ImageIcon, Wand2, Download, Loader2, AlertCircle } from 'lucide-react';
@@ -31,7 +32,7 @@ const VisualStudio: React.FC<Props> = ({ brand }) => {
       const fullPrompt = `High quality professional photography for brand: ${brand.name || 'Shank Strategy client'}. ${sanitizedPrompt}. Aesthetic: Clean, premium, commercial. Industry: ${brand.industry || 'Logistics & Consulting'}.`;
       
       const response = await ai.models.generateImages({
-        model: 'imagen-3.0-generate-002',
+        model: config.models.defaultImage,
         prompt: fullPrompt,
         config: {
           numberOfImages: 1,
