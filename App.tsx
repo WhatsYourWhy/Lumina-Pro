@@ -126,8 +126,11 @@ const App: React.FC = () => {
           supabase.from('global_intel').select('*').eq('id', user.id).single()
         ]);
 
-        if (brandRes.error || intelRes.error) {
-          throw brandRes.error || intelRes.error;
+        if (brandRes.error && brandRes.error.code !== 'PGRST116') {
+          throw brandRes.error;
+        }
+        if (intelRes.error && intelRes.error.code !== 'PGRST116') {
+          throw intelRes.error;
         }
 
         if (brandRes.data) {
