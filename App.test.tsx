@@ -94,4 +94,50 @@ describe('App Component State Sync Fallback', () => {
       expect(screen.getByText('Test Offline Company')).toBeInTheDocument();
     });
   });
+
+  it('loads local storage brand instead of Supabase when SHANK_BRAND_PENDING is true', async () => {
+    const mockUser = { id: 'test-user-id-pending', email: 'test@example.com' };
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({ data: { session: { user: mockUser } as any }, error: null });
+
+    const mockSelect = vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        single: vi.fn().mockResolvedValue({
+          data: { name: 'Supabase Brand Name', industry: 'SaaS', description: 'From DB', tone: 'Professional' },
+          error: null
+        })
+      })
+    });
+
+    vi.mocked(supabase.from).mockImplementation((table) => {
+      if (table === 'brand_profiles') {
+        return { select: mockSelect, upsert: vi.fn().mockResolvedValue({ data: null, error: null }) } as any;
+      }
+      return {
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } })
+          })
+        }),
+        upsert: vi.fn().mockResolvedValue({ data: null, error: null })
+      } as any;
+    });
+
+    const testLocalBrand = { name: 'Local Pending Brand Name', industry: 'Local Industry', description: 'From Local', tone: 'Friendly' };
+    localStorage.setItem('SHANK_OFFLINE_BRAND_test-user-id-pending', JSON.stringify(testLocalBrand));
+    localStorage.setItem('SHANK_BRAND_PENDING_test-user-id-pending', 'true');
+
+    await act(async () => {
+      render(<App />);
+    });
+
+    // Wait for the async loadUserData to execute
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 50));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Local Pending Brand Name')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('Supabase Brand Name')).not.toBeInTheDocument();
+  });
 });
