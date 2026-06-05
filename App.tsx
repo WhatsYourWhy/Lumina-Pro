@@ -88,13 +88,21 @@ const App: React.FC = () => {
           const localIntel = localStorage.getItem('SHANK_OFFLINE_INTEL_offline-local-user');
           
           if (localBrand) {
-            setBrand(JSON.parse(localBrand));
+            try {
+              setBrand({ ...createEmptyBrand(), ...JSON.parse(localBrand) });
+            } catch (e) {
+              setBrand(createEmptyBrand());
+            }
           } else {
             setBrand(createEmptyBrand());
           }
           
           if (localIntel) {
-            setGlobalIntel(JSON.parse(localIntel));
+            try {
+              setGlobalIntel({ ...createEmptyGlobalIntel(), ...JSON.parse(localIntel) });
+            } catch (e) {
+              setGlobalIntel(createEmptyGlobalIntel());
+            }
           } else {
             setGlobalIntel(createEmptyGlobalIntel());
           }
@@ -121,26 +129,72 @@ const App: React.FC = () => {
           throw intelRes.error;
         }
 
-        if (brandRes.data) {
-          setBrand({
-            name: brandRes.data.name || '',
-            industry: brandRes.data.industry || '',
-            description: brandRes.data.description || '',
-            tone: brandRes.data.tone || ''
-          });
+        // Check if there is a pending local change for brand
+        const brandPending = localStorage.getItem(`SHANK_BRAND_PENDING_${user.id}`) === 'true';
+        const localBrandStr = localStorage.getItem(`SHANK_OFFLINE_BRAND_${user.id}`);
+        
+        if (brandPending && localBrandStr) {
+          try {
+            setBrand({ ...createEmptyBrand(), ...JSON.parse(localBrandStr) });
+            console.log("Loaded brand from pending local changes to sync.");
+          } catch (e) {
+            console.error("Failed to parse pending local brand, falling back to Supabase data", e);
+            if (brandRes.data) {
+              setBrand({
+                name: brandRes.data.name || '',
+                industry: brandRes.data.industry || '',
+                description: brandRes.data.description || '',
+                tone: brandRes.data.tone || ''
+              });
+            } else {
+              setBrand(createEmptyBrand());
+            }
+          }
         } else {
-          setBrand(createEmptyBrand());
+          if (brandRes.data) {
+            setBrand({
+              name: brandRes.data.name || '',
+              industry: brandRes.data.industry || '',
+              description: brandRes.data.description || '',
+              tone: brandRes.data.tone || ''
+            });
+          } else {
+            setBrand(createEmptyBrand());
+          }
         }
 
-        if (intelRes.data) {
-          setGlobalIntel({
-             strategyHistory: intelRes.data.strategy_history || [],
-             marketAnalysis: intelRes.data.market_analysis,
-             contentDrafts: intelRes.data.content_drafts || [],
-             logistics: intelRes.data.logistics
-          });
+        // Check if there is a pending local change for intel
+        const intelPending = localStorage.getItem(`SHANK_INTEL_PENDING_${user.id}`) === 'true';
+        const localIntelStr = localStorage.getItem(`SHANK_OFFLINE_INTEL_${user.id}`);
+
+        if (intelPending && localIntelStr) {
+          try {
+            setGlobalIntel({ ...createEmptyGlobalIntel(), ...JSON.parse(localIntelStr) });
+            console.log("Loaded globalIntel from pending local changes to sync.");
+          } catch (e) {
+            console.error("Failed to parse pending local intel, falling back to Supabase data", e);
+            if (intelRes.data) {
+              setGlobalIntel({
+                 strategyHistory: intelRes.data.strategy_history || [],
+                 marketAnalysis: intelRes.data.market_analysis,
+                 contentDrafts: intelRes.data.content_drafts || [],
+                 logistics: intelRes.data.logistics
+              });
+            } else {
+              setGlobalIntel(createEmptyGlobalIntel());
+            }
+          }
         } else {
-          setGlobalIntel(createEmptyGlobalIntel());
+          if (intelRes.data) {
+            setGlobalIntel({
+               strategyHistory: intelRes.data.strategy_history || [],
+               marketAnalysis: intelRes.data.market_analysis,
+               contentDrafts: intelRes.data.content_drafts || [],
+               logistics: intelRes.data.logistics
+            });
+          } else {
+            setGlobalIntel(createEmptyGlobalIntel());
+          }
         }
         setIsDataLoaded(true);
       } catch (err) {
@@ -149,13 +203,21 @@ const App: React.FC = () => {
         const localIntel = localStorage.getItem(`SHANK_OFFLINE_INTEL_${user.id}`);
         
         if (localBrand) {
-          setBrand(JSON.parse(localBrand));
+          try {
+            setBrand({ ...createEmptyBrand(), ...JSON.parse(localBrand) });
+          } catch (e) {
+            setBrand(createEmptyBrand());
+          }
         } else {
           setBrand(createEmptyBrand());
         }
         
         if (localIntel) {
-          setGlobalIntel(JSON.parse(localIntel));
+          try {
+            setGlobalIntel({ ...createEmptyGlobalIntel(), ...JSON.parse(localIntel) });
+          } catch (e) {
+            setGlobalIntel(createEmptyGlobalIntel());
+          }
         } else {
           setGlobalIntel(createEmptyGlobalIntel());
         }
@@ -179,7 +241,7 @@ const App: React.FC = () => {
       }
       
       try {
-        await supabase.from('brand_profiles').upsert({
+        const { error } = await supabase.from('brand_profiles').upsert({
           id: user.id,
           name: brand.name,
           industry: brand.industry,
@@ -187,9 +249,12 @@ const App: React.FC = () => {
           tone: brand.tone,
           updated_at: new Date().toISOString()
         });
+        if (error) throw error;
+        localStorage.removeItem(`SHANK_BRAND_PENDING_${user.id}`);
       } catch (err) {
         console.warn("Supabase brand upsert failed, saving locally...", err);
         localStorage.setItem(`SHANK_OFFLINE_BRAND_${user.id}`, JSON.stringify(brand));
+        localStorage.setItem(`SHANK_BRAND_PENDING_${user.id}`, 'true');
       }
     }, 1500); // 1.5s debounce
 
@@ -206,7 +271,7 @@ const App: React.FC = () => {
       }
       
       try {
-        await supabase.from('global_intel').upsert({
+        const { error } = await supabase.from('global_intel').upsert({
           id: user.id,
           strategy_history: globalIntel.strategyHistory,
           market_analysis: globalIntel.marketAnalysis,
@@ -214,9 +279,12 @@ const App: React.FC = () => {
           logistics: globalIntel.logistics,
           updated_at: new Date().toISOString()
         });
+        if (error) throw error;
+        localStorage.removeItem(`SHANK_INTEL_PENDING_${user.id}`);
       } catch (err) {
         console.warn("Supabase intel upsert failed, saving locally...", err);
         localStorage.setItem(`SHANK_OFFLINE_INTEL_${user.id}`, JSON.stringify(globalIntel));
+        localStorage.setItem(`SHANK_INTEL_PENDING_${user.id}`, 'true');
       }
     }, 1500); // 1.5s debounce
 

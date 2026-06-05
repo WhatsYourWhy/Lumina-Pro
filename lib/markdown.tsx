@@ -11,7 +11,7 @@ export const parseBold = (text: string): React.ReactNode[] => {
 };
 
 export const renderMarkdown = (text: string, compact: boolean = false): React.ReactNode => {
-  const lines = text.split('\n');
+  const lines = (text || '').split('\n');
   const spaceClass = compact ? "space-y-3" : "space-y-4";
   
   return (

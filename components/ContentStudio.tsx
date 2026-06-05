@@ -12,6 +12,7 @@ interface Props {
 }
 
 const ContentStudio: React.FC<Props> = ({ brand, savedPosts, setSavedPosts }) => {
+  const postsList = savedPosts || [];
   const [topic, setTopic] = useState('');
   const [loading, setLoading] = useState(false);
   const [selectedTone, setSelectedTone] = useState<'analytical' | 'leadership' | 'crisis' | 'visionary'>('leadership');
@@ -64,7 +65,7 @@ const ContentStudio: React.FC<Props> = ({ brand, savedPosts, setSavedPosts }) =>
           splitPosts.push(content.trim());
         }
       }
-      setSavedPosts([...splitPosts, ...savedPosts].slice(0, 9));
+      setSavedPosts([...splitPosts, ...postsList].slice(0, 9));
       toast.success('Generated drafts successfully!');
     } catch (error: any) {
       console.error(error);
@@ -120,9 +121,9 @@ const ContentStudio: React.FC<Props> = ({ brand, savedPosts, setSavedPosts }) =>
       </div>
 
       <div className="flex-1 overflow-y-auto pr-1">
-        {savedPosts.length > 0 ? (
+        {postsList.length > 0 ? (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in fade-in duration-500">
-            {savedPosts.map((post, idx) => (
+            {postsList.map((post, idx) => (
               <div key={idx} className="glass rounded-3xl p-6 border-slate-800/50 space-y-4 shadow-xl flex flex-col justify-between hover:border-slate-700 transition-colors">
                 <div className="space-y-4">
                   <div className="flex justify-between items-center pb-2 border-b border-slate-800">

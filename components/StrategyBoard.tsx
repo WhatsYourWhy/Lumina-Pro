@@ -32,6 +32,7 @@ const formatTimestamp = (ts: string) => {
 };
 
 const StrategyBoard: React.FC<Props> = ({ brand, setBrand, history, onNewEntry }) => {
+  const historyList = history || [];
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -128,8 +129,8 @@ const StrategyBoard: React.FC<Props> = ({ brand, setBrand, history, onNewEntry }
   };
 
 
-  const activeContent = currentAnalysis || history[displayIndex]?.content;
-  const activeTitle = currentAnalysis ? tempType : history[displayIndex]?.type;
+  const activeContent = currentAnalysis || historyList[displayIndex]?.content;
+  const activeTitle = currentAnalysis ? tempType : historyList[displayIndex]?.type;
 
   return (
     <div className="space-y-6 lg:space-y-8 animate-in fade-in pb-20">
@@ -202,8 +203,8 @@ const StrategyBoard: React.FC<Props> = ({ brand, setBrand, history, onNewEntry }
           <div className="glass p-5 rounded-2xl space-y-4 border-slate-800/50">
             <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2"><History size={14}/> Saved Logic</h3>
             <div className="space-y-1 max-h-48 overflow-y-auto pr-1 scrollbar-hide">
-              {history.length > 0 ? (
-                history.map((h, i) => (
+              {historyList.length > 0 ? (
+                historyList.map((h, i) => (
                   <button 
                     key={i} 
                     onClick={() => { setDisplayIndex(i); setCurrentAnalysis(null); }}

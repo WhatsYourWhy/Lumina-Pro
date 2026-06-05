@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Type } from '@google/genai';
 import { ai } from '../lib/api';
 import { config } from '../config';
 import { renderMarkdown } from '../lib/markdown';
@@ -71,7 +72,19 @@ const SupplyChainConsole: React.FC<Props> = ({ brand, intel, setIntel }) => {
         contents: `Find CURRENT active logistical disruptions or bottlenecks affecting transit around/between: "${route}". Return ONLY a JSON array of objects with keys: "title", "summary", "severity" (choose from: high, medium, low). No prose, no code fences — just the JSON array.`,
         config: {
           tools: [{ googleSearch: {} }],
-          responseMimeType: "application/json"
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                title: { type: Type.STRING },
+                summary: { type: Type.STRING },
+                severity: { type: Type.STRING, enum: ["high", "medium", "low"] }
+              },
+              required: ["title", "summary", "severity"]
+            }
+          }
         }
       });
 

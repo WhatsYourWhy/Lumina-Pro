@@ -101,7 +101,11 @@ npm install
 Copy the example file and fill in your keys:
 
 ```bash
+# On Linux, macOS, or Windows Git Bash:
 cp .env.example .env.local
+
+# On Windows Command Prompt (cmd.exe):
+copy .env.example .env.local
 ```
 
 | Variable | Required | Used by | Description |
@@ -191,3 +195,42 @@ Browser  ──▶  Vite dev server (/api/*)  ──▶  Express proxy (:3001)  
 ```
 
 Users can also paste a personal API key in the app UI, which bypasses the proxy and calls Google directly from the browser.
+
+---
+
+## Extension Guidelines
+
+### 1. Modifying Default AI Models
+To update or change the active Gemini models (e.g. when transitioning from preview to stable versions), edit [`config.ts`](config.ts):
+
+```ts
+export const config = {
+  models: {
+    defaultPro:   'gemini-2.5-pro-preview', // Main framework logic
+    defaultFlash: 'gemini-2.5-flash',       // Live web grounding searches
+    defaultImage: 'imagen-3.0-generate-002',// Visual studio slide layout
+  }
+};
+```
+
+### 2. Adding Custom Strategy Frameworks
+If you want to add a new operational framework (e.g. Six Sigma DMAIC, Volatility Bullwhip):
+1. Add the enum values to [`types.ts`](types.ts).
+2. Register the selector logic and prompt templates in [`components/StrategyBoard.tsx`](components/StrategyBoard.tsx) inside the `generateConsultingFramework` method.
+3. If the framework output requires specialized markdown styling, update the custom markdown parser in [`lib/markdown.tsx`](lib/markdown.tsx).
+
+---
+
+## Troubleshooting & Debugging
+
+### 1. Express Reverse Proxy Connection Failure
+If calls to `/api/*` return timeouts or connection errors (e.g. `502 Bad Gateway`):
+- Run the server standalone using `npm run server` and inspect the node console output.
+- Check that the server port `3001` matches the target specified in the proxy rule in [`vite.config.ts`](vite.config.ts).
+- Verify that `TRUST_PROXY` is configured if deploying behind custom load balancers.
+
+### 2. Invalid Google Gemini API Key
+If AI operations fail with `upstream_error` or `Forbidden`:
+- Call `GET http://localhost:3001/health/upstream`. This invokes a cheap Google models check using your key.
+- If it returns `502 upstream_error`, verify the value of `GEMINI_API_KEY` in your `.env.local` file.
+
