@@ -78,8 +78,8 @@ const ExportPDF: React.FC<ExportProps> = ({ brand, intel }) => {
         </div>
 
         <h2 style={{ fontSize: '24px', fontWeight: 'bold', margin: '40px 0 16px 0', borderBottom: '2px solid #e2e8f0', paddingBottom: '8px', color: '#1e293b' }}>Strategic History</h2>
-        {intel.strategyHistory.length === 0 && <p style={{ fontSize: '14px', color: '#64748b' }}>No strategic history found.</p>}
-        {intel.strategyHistory.map((entry: any, i: number) => (
+        {(intel?.strategyHistory || []).length === 0 && <p style={{ fontSize: '14px', color: '#64748b' }}>No strategic history found.</p>}
+        {(intel?.strategyHistory || []).map((entry: any, i: number) => (
           <div key={i} style={{ marginTop: '24px', padding: '20px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                <h3 style={{ fontWeight: 'bold', fontSize: '16px', textTransform: 'uppercase', color: '#6366f1', margin: 0 }}>{entry.type}</h3>

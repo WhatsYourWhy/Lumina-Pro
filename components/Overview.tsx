@@ -32,8 +32,9 @@ const Overview: React.FC<Props> = ({ brand, intel, onNavigate }) => {
 
   const exportBrief = () => {
     const timestamp = new Date().toLocaleString();
-    const strategySection = intel.strategyHistory.length > 0 
-      ? intel.strategyHistory.map(h => `[${h.timestamp}] ANALYSIS TYPE: ${h.type}\n------------------------------------------\n${h.content}\n`).join('\n\n')
+    const strategyHistory = intel?.strategyHistory || [];
+    const strategySection = strategyHistory.length > 0 
+      ? strategyHistory.map(h => `[${h.timestamp}] ANALYSIS TYPE: ${h.type}\n------------------------------------------\n${h.content}\n`).join('\n\n')
       : 'No strategy framework generated yet.';
 
     const report = `
@@ -64,8 +65,8 @@ ${intel.logistics || 'Supply chain mapping not yet initiated.'}
 
 5. CREATIVE ASSETS & CONTENT DRAFTS
 -----------------------------------
-${intel.contentDrafts.length > 0 
-  ? intel.contentDrafts.map((post, i) => `[DRAFT ${i+1}]\n${post}`).join('\n\n---\n\n') 
+${(intel?.contentDrafts || []).length > 0 
+  ? (intel?.contentDrafts || []).map((post, i) => `[DRAFT ${i+1}]\n${post}`).join('\n\n---\n\n') 
   : 'Creative studio drafts empty.'}
 
 ===================================================
@@ -129,23 +130,23 @@ Shank Strategy Ops Workbench v3.0
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-3">
                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Framework Intelligence</p>
-                {intel.strategyHistory.length > 0 ? (
+                {(intel?.strategyHistory || []).length > 0 ? (
                   <div className="space-y-2">
-                    {intel.strategyHistory.slice(0, 3).map((h, i) => (
+                    {(intel?.strategyHistory || []).slice(0, 3).map((h, i) => (
                       <div key={i} className="flex items-center gap-2 text-xs font-bold text-slate-300">
                         <CheckCircle2 size={14} className="text-emerald-500" /> {h.type}
                       </div>
                     ))}
-                    {intel.strategyHistory.length > 3 && <p className="text-[9px] text-slate-500 pl-6">+ {intel.strategyHistory.length - 3} more frameworks</p>}
+                    {(intel?.strategyHistory || []).length > 3 && <p className="text-[9px] text-slate-500 pl-6">+ {(intel?.strategyHistory || []).length - 3} more frameworks</p>}
                   </div>
                 ) : <p className="text-xs text-slate-600 italic">No frameworks analyzed yet.</p>}
               </div>
               <div className="space-y-3">
                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Multimodal Assets</p>
                 <div className="flex flex-wrap gap-2">
-                   <div className={`px-2 py-1 rounded text-[9px] font-black border uppercase transition-colors ${intel.marketAnalysis ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400' : 'bg-slate-800 border-slate-700 text-slate-600'}`}>Market</div>
-                   <div className={`px-2 py-1 rounded text-[9px] font-black border uppercase transition-colors ${intel.logistics ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400' : 'bg-slate-800 border-slate-700 text-slate-600'}`}>Logistics</div>
-                   <div className={`px-2 py-1 rounded text-[9px] font-black border uppercase transition-colors ${intel.contentDrafts.length > 0 ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400' : 'bg-slate-800 border-slate-700 text-slate-600'}`}>Content</div>
+                   <div className={`px-2 py-1 rounded text-[9px] font-black border uppercase transition-colors ${intel?.marketAnalysis ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400' : 'bg-slate-800 border-slate-700 text-slate-600'}`}>Market</div>
+                   <div className={`px-2 py-1 rounded text-[9px] font-black border uppercase transition-colors ${intel?.logistics ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400' : 'bg-slate-800 border-slate-700 text-slate-600'}`}>Logistics</div>
+                   <div className={`px-2 py-1 rounded text-[9px] font-black border uppercase transition-colors ${(intel?.contentDrafts || []).length > 0 ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400' : 'bg-slate-800 border-slate-700 text-slate-600'}`}>Content</div>
                 </div>
               </div>
             </div>

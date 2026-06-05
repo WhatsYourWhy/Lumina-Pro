@@ -88,13 +88,21 @@ const App: React.FC = () => {
           const localIntel = localStorage.getItem('SHANK_OFFLINE_INTEL_offline-local-user');
           
           if (localBrand) {
-            setBrand(JSON.parse(localBrand));
+            try {
+              setBrand({ ...createEmptyBrand(), ...JSON.parse(localBrand) });
+            } catch (e) {
+              setBrand(createEmptyBrand());
+            }
           } else {
             setBrand(createEmptyBrand());
           }
           
           if (localIntel) {
-            setGlobalIntel(JSON.parse(localIntel));
+            try {
+              setGlobalIntel({ ...createEmptyGlobalIntel(), ...JSON.parse(localIntel) });
+            } catch (e) {
+              setGlobalIntel(createEmptyGlobalIntel());
+            }
           } else {
             setGlobalIntel(createEmptyGlobalIntel());
           }
@@ -149,13 +157,21 @@ const App: React.FC = () => {
         const localIntel = localStorage.getItem(`SHANK_OFFLINE_INTEL_${user.id}`);
         
         if (localBrand) {
-          setBrand(JSON.parse(localBrand));
+          try {
+            setBrand({ ...createEmptyBrand(), ...JSON.parse(localBrand) });
+          } catch (e) {
+            setBrand(createEmptyBrand());
+          }
         } else {
           setBrand(createEmptyBrand());
         }
         
         if (localIntel) {
-          setGlobalIntel(JSON.parse(localIntel));
+          try {
+            setGlobalIntel({ ...createEmptyGlobalIntel(), ...JSON.parse(localIntel) });
+          } catch (e) {
+            setGlobalIntel(createEmptyGlobalIntel());
+          }
         } else {
           setGlobalIntel(createEmptyGlobalIntel());
         }
@@ -179,7 +195,7 @@ const App: React.FC = () => {
       }
       
       try {
-        await supabase.from('brand_profiles').upsert({
+        const { error } = await supabase.from('brand_profiles').upsert({
           id: user.id,
           name: brand.name,
           industry: brand.industry,
@@ -187,6 +203,7 @@ const App: React.FC = () => {
           tone: brand.tone,
           updated_at: new Date().toISOString()
         });
+        if (error) throw error;
       } catch (err) {
         console.warn("Supabase brand upsert failed, saving locally...", err);
         localStorage.setItem(`SHANK_OFFLINE_BRAND_${user.id}`, JSON.stringify(brand));
@@ -206,7 +223,7 @@ const App: React.FC = () => {
       }
       
       try {
-        await supabase.from('global_intel').upsert({
+        const { error } = await supabase.from('global_intel').upsert({
           id: user.id,
           strategy_history: globalIntel.strategyHistory,
           market_analysis: globalIntel.marketAnalysis,
@@ -214,6 +231,7 @@ const App: React.FC = () => {
           logistics: globalIntel.logistics,
           updated_at: new Date().toISOString()
         });
+        if (error) throw error;
       } catch (err) {
         console.warn("Supabase intel upsert failed, saving locally...", err);
         localStorage.setItem(`SHANK_OFFLINE_INTEL_${user.id}`, JSON.stringify(globalIntel));

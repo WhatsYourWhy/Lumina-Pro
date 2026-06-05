@@ -60,4 +60,23 @@ describe('Markdown Parser Library', () => {
     expect(listItems[0]).toHaveTextContent('List Item 1');
     expect(listItems[1]).toHaveTextContent('List Item 2');
   });
+
+  it('should parse horizontal rules correctly', () => {
+    const markdown = `---`;
+    const { container } = render(<div>{renderMarkdown(markdown, false)}</div>);
+    const hr = container.querySelector('hr');
+    expect(hr).toBeInTheDocument();
+  });
+
+  it('should handle null, undefined, or empty string gracefully without throwing', () => {
+    expect(() => render(<div>{renderMarkdown(null as any, false)}</div>)).not.toThrow();
+    expect(() => render(<div>{renderMarkdown(undefined as any, false)}</div>)).not.toThrow();
+    expect(() => render(<div>{renderMarkdown('', false)}</div>)).not.toThrow();
+  });
+
+  it('should parse unmatched bold tags safely', () => {
+    render(<div>{parseBold('Hello **World')}</div>);
+    const strongEl = screen.getByText('World');
+    expect(strongEl.tagName).toBe('STRONG');
+  });
 });
