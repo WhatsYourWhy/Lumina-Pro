@@ -70,8 +70,16 @@ const StrategyBoard: React.FC<Props> = ({ brand, setBrand, history, onNewEntry }
         }
       });
 
-      const data = parseCleanJson(extractResponse.text, { industry: '', description: '', tone: '' });
-      setBrand({ ...brand, ...data });
+      const data = parseCleanJson<Record<string, string> | null>(extractResponse.text, null);
+      if (!data || !data.industry || !data.description || !data.tone) {
+        throw new Error("AI extraction did not return a complete business profile.");
+      }
+      setBrand({
+        ...brand,
+        industry: data.industry,
+        description: data.description,
+        tone: data.tone
+      });
     } catch (e) { 
       console.error("Brand discovery failed:", e);
       setError("Discovery phase failed. Please check company name or enter details manually.");
