@@ -4,6 +4,7 @@ import { ai } from '../lib/api';
 import { config } from '../config';
 import { renderMarkdown } from '../lib/markdown';
 import { BrandProfile, GroundingSource } from '../types';
+import { parseCleanJson } from '../lib/json';
 import toast from 'react-hot-toast';
 import { Search, Globe, Loader2, Lightbulb, TrendingUp } from 'lucide-react';
 
@@ -61,7 +62,7 @@ const MarketInsights: React.FC<Props> = ({ brand, analysis, setAnalysis }) => {
             }
           }
         });
-        const parsed = JSON.parse(rabbitResponse.text || '[]');
+        const parsed = parseCleanJson<string[]>(rabbitResponse.text, []);
         setRabbitHoles(Array.isArray(parsed) ? parsed : []);
       } catch (rabbitErr) {
         console.warn("Failed to generate drilldown questions", rabbitErr);

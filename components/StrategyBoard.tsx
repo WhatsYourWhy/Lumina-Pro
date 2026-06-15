@@ -4,6 +4,7 @@ import { ai } from '../lib/api';
 import { config } from '../config';
 import { renderMarkdown } from '../lib/markdown';
 import { BrandProfile } from '../types';
+import { parseCleanJson } from '../lib/json';
 import toast from 'react-hot-toast';
 import { 
   Zap, 
@@ -69,7 +70,7 @@ const StrategyBoard: React.FC<Props> = ({ brand, setBrand, history, onNewEntry }
         }
       });
 
-      const data = JSON.parse(extractResponse.text);
+      const data = parseCleanJson(extractResponse.text, { industry: '', description: '', tone: '' });
       setBrand({ ...brand, ...data });
     } catch (e) { 
       console.error("Brand discovery failed:", e);

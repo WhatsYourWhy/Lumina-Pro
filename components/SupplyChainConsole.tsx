@@ -4,6 +4,7 @@ import { ai } from '../lib/api';
 import { config } from '../config';
 import { renderMarkdown } from '../lib/markdown';
 import { BrandProfile, LogisticsDisruption } from '../types';
+import { parseCleanJson } from '../lib/json';
 import toast from 'react-hot-toast';
 import {
   Truck,
@@ -42,22 +43,12 @@ const SupplyChainConsole: React.FC<Props> = ({ brand, intel, setIntel }) => {
       const response = await ai.models.generateContent({
         model: config.models.defaultFlash,
         contents: prompt,
-        config: { tools: [{ googleMaps: {} }, { googleSearch: {} }] as any }
+        config: { tools: [{ googleSearch: {} }] }
       });
       setIntel(response.text);
-    } catch (e: any) {
-      console.warn("Failed with googleMaps tool, retrying with googleSearch only", e);
-      try {
-        const fallback = await ai.models.generateContent({
-          model: config.models.defaultFlash,
-          contents: prompt,
-          config: { tools: [{ googleSearch: {} }] }
-        });
-        setIntel(fallback.text);
-      } catch (fallbackError: any) {
-        console.error(fallbackError);
-        toast.error("Failed to analyze supply chain logic. " + (fallbackError.message || ''));
-      }
+    } catch (error: any) {
+      console.error(error);
+      toast.error("Failed to analyze supply chain logic. " + (error.message || ''));
     } finally {
       setLoading(false);
     }
@@ -88,23 +79,7 @@ const SupplyChainConsole: React.FC<Props> = ({ brand, intel, setIntel }) => {
         }
       });
 
-      let parsed = [];
-      const text = response.text || '';
-      try {
-        parsed = JSON.parse(text);
-      } catch (jsonErr) {
-        console.warn("Direct JSON parsing failed, attempting extraction", jsonErr);
-        const jsonMatch = text.match(/\[\s*\{.*\}\s*\]/s);
-        if (jsonMatch) {
-          try {
-            parsed = JSON.parse(jsonMatch[0]);
-          } catch (e2) {
-            throw jsonErr;
-          }
-        } else {
-          throw jsonErr;
-        }
-      }
+      const parsed = parseCleanJson<LogisticsDisruption[]>(response.text, []);
       setDisruptions(Array.isArray(parsed) ? parsed : []);
     } catch (e: any) {
       console.error(e);
