@@ -61,6 +61,36 @@ describe('Markdown Parser Library', () => {
     expect(listItems[1]).toHaveTextContent('List Item 2');
   });
 
+  it('should group list items in a single ul tag', () => {
+    const markdown = `- List Item 1\n* List Item 2`;
+    const { container } = render(<div>{renderMarkdown(markdown, false)}</div>);
+    const ul = container.querySelector('ul');
+    expect(ul).toBeInTheDocument();
+    expect(ul?.children).toHaveLength(2);
+    expect(ul?.children[0].tagName).toBe('LI');
+  });
+
+  it('should group ordered list items in an ol tag', () => {
+    const markdown = `1. First Step\n2. Second Step`;
+    const { container } = render(<div>{renderMarkdown(markdown, false)}</div>);
+    const ol = container.querySelector('ol');
+    expect(ol).toBeInTheDocument();
+    expect(ol?.children).toHaveLength(2);
+    expect(ol?.children[0].tagName).toBe('LI');
+    expect(ol?.children[0]).toHaveTextContent('First Step');
+  });
+
+  it('should apply theme override styles', () => {
+    const markdown = `### Heading\n**Bold Text**`;
+    const { container: darkContainer } = render(<div>{renderMarkdown(markdown, false, 'dark')}</div>);
+    const darkHeading = darkContainer.querySelector('h4');
+    expect(darkHeading).toHaveClass('text-indigo-400');
+
+    const { container: lightContainer } = render(<div>{renderMarkdown(markdown, false, 'light')}</div>);
+    const lightHeading = lightContainer.querySelector('h4');
+    expect(lightHeading).toHaveClass('text-indigo-700');
+  });
+
   it('should parse horizontal rules correctly', () => {
     const markdown = `---`;
     const { container } = render(<div>{renderMarkdown(markdown, false)}</div>);
@@ -80,3 +110,4 @@ describe('Markdown Parser Library', () => {
     expect(strongEl.tagName).toBe('STRONG');
   });
 });
+

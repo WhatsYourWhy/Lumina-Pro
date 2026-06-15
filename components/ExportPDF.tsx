@@ -3,6 +3,7 @@ import { Download, Loader2 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { BrandProfile, GlobalIntelState } from '../types';
+import { renderMarkdown } from '../lib/markdown';
 import toast from 'react-hot-toast';
 
 interface ExportProps {
@@ -73,8 +74,8 @@ const ExportPDF: React.FC<ExportProps> = ({ brand, intel }) => {
         <p style={{ color: '#64748b', fontSize: '16px', margin: '0 0 40px 0' }}>{brand.industry} • {brand.tone}</p>
         
         <h2 style={{ fontSize: '24px', fontWeight: 'bold', margin: '32px 0 16px 0', borderBottom: '2px solid #e2e8f0', paddingBottom: '8px', color: '#1e293b' }}>Market Analysis</h2>
-        <div style={{ whiteSpace: 'pre-wrap', fontSize: '14px', lineHeight: '1.8', color: '#334155' }}>
-          {intel.marketAnalysis || 'No market analysis generated yet.'}
+        <div style={{ fontSize: '14px', lineHeight: '1.8', color: '#334155' }}>
+          {intel.marketAnalysis ? renderMarkdown(intel.marketAnalysis, true, 'light') : 'No market analysis generated yet.'}
         </div>
 
         <h2 style={{ fontSize: '24px', fontWeight: 'bold', margin: '40px 0 16px 0', borderBottom: '2px solid #e2e8f0', paddingBottom: '8px', color: '#1e293b' }}>Strategic History</h2>
@@ -85,7 +86,7 @@ const ExportPDF: React.FC<ExportProps> = ({ brand, intel }) => {
                <h3 style={{ fontWeight: 'bold', fontSize: '16px', textTransform: 'uppercase', color: '#6366f1', margin: 0 }}>{entry.type}</h3>
                <span style={{ fontSize: '12px', color: '#94a3b8' }}>{formatTimestamp(entry.timestamp)}</span>
             </div>
-            <div style={{ whiteSpace: 'pre-wrap', fontSize: '14px', lineHeight: '1.7', color: '#334155' }}>{entry.content}</div>
+            <div style={{ fontSize: '14px', lineHeight: '1.7', color: '#334155' }}>{renderMarkdown(entry.content, false, 'light')}</div>
           </div>
         ))}
       </div>

@@ -134,10 +134,13 @@ app.use((req, res, next) => {
   next();
 });
 
-// Proxy everything to Gemini API
+// Proxy only Gemini API model endpoints
 app.use('/', createProxyMiddleware({
   target: 'https://generativelanguage.googleapis.com',
   changeOrigin: true,
+  pathFilter: (pathname) => {
+    return pathname.startsWith('/v1beta/models') || pathname.startsWith('/v1/models');
+  },
   ws: true,
   router: function(req) {
      if (req.url.startsWith('/ws')) {
