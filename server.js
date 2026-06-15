@@ -23,11 +23,14 @@ const allowedOrigins = process.env.FRONTEND_URL ? [process.env.FRONTEND_URL, 'ht
 app.use(cors({ origin: allowedOrigins }));
 app.use(helmet());
 
-// Rate limiting: max 100 requests per 15 minutes per IP
+// Rate limiting config from env with safe defaults (250 requests per 15 minutes)
+const rateLimitWindowMs = Number(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000;
+const rateLimitMax = Number(process.env.RATE_LIMIT_MAX) || 250;
+
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-  message: { error: 'Too many requests from this IP, please try again after 15 minutes' }
+  windowMs: rateLimitWindowMs,
+  max: rateLimitMax,
+  message: { error: 'Too many requests from this IP, please try again later.' }
 });
 
 // Health endpoints — registered BEFORE the rate limiter and key-gate so that
@@ -42,7 +45,11 @@ app.get('/health', (req, res) => {
     geminiKeyConfigured: !!process.env.GEMINI_API_KEY,
     trustProxy: app.get('trust proxy') ?? false,
     allowedOrigins,
-    nodeEnv: process.env.NODE_ENV || 'development'
+    nodeEnv: process.env.NODE_ENV || 'development',
+    rateLimitSettings: {
+      windowMs: rateLimitWindowMs,
+      max: rateLimitMax
+    }
   });
 });
 
