@@ -79,8 +79,11 @@ const SupplyChainConsole: React.FC<Props> = ({ brand, intel, setIntel }) => {
         }
       });
 
-      const parsed = parseCleanJson<LogisticsDisruption[]>(response.text, []);
-      setDisruptions(Array.isArray(parsed) ? parsed : []);
+      const parsed = parseCleanJson<LogisticsDisruption[] | null>(response.text, null);
+      if (!parsed) {
+        throw new Error("AI extraction did not return a valid list of logistical disruptions.");
+      }
+      setDisruptions(parsed);
     } catch (e: any) {
       console.error(e);
       toast.error("Failed to scan live alerts. " + (e.message || ''));
