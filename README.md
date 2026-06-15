@@ -111,14 +111,14 @@ copy .env.example .env.local
 | Variable | Required | Used by | Description |
 |---|---|---|---|
 | `GEMINI_API_KEY` | **Yes** | `server.js` | Google AI API key — injected by the proxy, never exposed to the browser |
-| `VITE_SUPABASE_URL` | No* | Frontend | Supabase project URL. Without it the app falls back to offline mode |
-| `VITE_SUPABASE_ANON_KEY` | No* | Frontend | Supabase anonymous key |
+| `VITE_SUPABASE_URL` | No* | Frontend & Server | Supabase project URL. Enforces JWT auth on backend proxy routes when configured. |
+| `VITE_SUPABASE_ANON_KEY` | No* | Frontend & Server | Supabase anonymous key. |
 | `PORT` | No | `server.js` | Proxy server port (default `3001`) |
 | `TRUST_PROXY` | No | `server.js` | Express `trust proxy` setting for deployments behind a reverse proxy (e.g. `1`, `loopback`). Leave unset for local development |
 | `FRONTEND_URL` | No | `server.js` | Additional allowed CORS origin for production deployments. `http://localhost:3000` is always allowed |
 | `NODE_ENV` | No | `server.js` | When set to `test`, the proxy is exported without calling `app.listen()` so Vitest can mount it. Leave unset for normal dev/prod runs |
 
-> \* The app runs in **offline mode** when Supabase keys are missing. Auth and persistence are disabled but all AI features remain functional.
+> \* The app runs in **offline mode** when Supabase keys are missing. Auth and persistence are disabled on the frontend, and the backend proxy runs without enforcing JWT authentication. When configured, JWT authentication is strictly verified.
 
 ### 3. Initialize the Database (Optional)
 

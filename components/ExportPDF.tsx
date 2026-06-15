@@ -35,15 +35,52 @@ const ExportPDF: React.FC<ExportProps> = ({ brand, intel }) => {
         useCORS: true,
         logging: false
       });
-      const imgData = canvas.toDataURL('image/png');
-      
+      const canvasWidth = canvas.width;
+      const canvasHeight = canvas.height;
+      // Calculate standard height for a page in canvas pixels based on A4 aspect ratio (~1.414)
+      const pageHeightInCanvasPixels = Math.floor(canvasWidth * 1.414);
+
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'px',
-        format: [canvas.width, canvas.height]
+        format: 'a4'
       });
-      
-      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const scale = pdfWidth / canvasWidth;
+
+      let heightLeft = canvasHeight;
+      let position = 0;
+      let pageNum = 0;
+
+      while (heightLeft > 0) {
+        const pageCanvas = document.createElement('canvas');
+        pageCanvas.width = canvasWidth;
+        const currentSliceHeight = Math.min(pageHeightInCanvasPixels, heightLeft);
+        pageCanvas.height = currentSliceHeight;
+
+        const ctx = pageCanvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(
+            canvas,
+            0, position, canvasWidth, currentSliceHeight,
+            0, 0, canvasWidth, currentSliceHeight
+          );
+        }
+
+        const pageImgData = pageCanvas.toDataURL('image/png');
+
+        if (pageNum > 0) {
+          pdf.addPage();
+        }
+
+        pdf.addImage(pageImgData, 'PNG', 0, 0, pdfWidth, currentSliceHeight * scale);
+
+        position += pageHeightInCanvasPixels;
+        heightLeft -= pageHeightInCanvasPixels;
+        pageNum++;
+      }
+
       pdf.save(`${brand.name || 'Brand'}_Strategy_Report.pdf`);
     } catch (error) {
       console.error('Failed to export PDF', error);

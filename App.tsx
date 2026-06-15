@@ -233,10 +233,17 @@ const App: React.FC = () => {
   // Sync state to Database periodically or on critical changes
   useEffect(() => {
     if (!user || authLoading || !isDataLoaded) return;
+
+    // Immediately back up to LocalStorage and set pending status
+    if (user.id !== 'offline-local-user') {
+      localStorage.setItem(`SHANK_OFFLINE_BRAND_${user.id}`, JSON.stringify(brand));
+      localStorage.setItem(`SHANK_BRAND_PENDING_${user.id}`, 'true');
+    } else {
+      localStorage.setItem('SHANK_OFFLINE_BRAND_offline-local-user', JSON.stringify(brand));
+    }
     
     const timeoutId = setTimeout(async () => {
       if (user.id === 'offline-local-user') {
-        localStorage.setItem('SHANK_OFFLINE_BRAND_offline-local-user', JSON.stringify(brand));
         return;
       }
       
@@ -252,9 +259,7 @@ const App: React.FC = () => {
         if (error) throw error;
         localStorage.removeItem(`SHANK_BRAND_PENDING_${user.id}`);
       } catch (err) {
-        console.warn("Supabase brand upsert failed, saving locally...", err);
-        localStorage.setItem(`SHANK_OFFLINE_BRAND_${user.id}`, JSON.stringify(brand));
-        localStorage.setItem(`SHANK_BRAND_PENDING_${user.id}`, 'true');
+        console.warn("Supabase brand upsert failed, keeping local pending changes...", err);
       }
     }, 1500); // 1.5s debounce
 
@@ -263,10 +268,17 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (!user || authLoading || !isDataLoaded) return;
+
+    // Immediately back up to LocalStorage and set pending status
+    if (user.id !== 'offline-local-user') {
+      localStorage.setItem(`SHANK_OFFLINE_INTEL_${user.id}`, JSON.stringify(globalIntel));
+      localStorage.setItem(`SHANK_INTEL_PENDING_${user.id}`, 'true');
+    } else {
+      localStorage.setItem('SHANK_OFFLINE_INTEL_offline-local-user', JSON.stringify(globalIntel));
+    }
     
     const timeoutId = setTimeout(async () => {
       if (user.id === 'offline-local-user') {
-        localStorage.setItem('SHANK_OFFLINE_INTEL_offline-local-user', JSON.stringify(globalIntel));
         return;
       }
       
@@ -282,9 +294,7 @@ const App: React.FC = () => {
         if (error) throw error;
         localStorage.removeItem(`SHANK_INTEL_PENDING_${user.id}`);
       } catch (err) {
-        console.warn("Supabase intel upsert failed, saving locally...", err);
-        localStorage.setItem(`SHANK_OFFLINE_INTEL_${user.id}`, JSON.stringify(globalIntel));
-        localStorage.setItem(`SHANK_INTEL_PENDING_${user.id}`, 'true');
+        console.warn("Supabase intel upsert failed, keeping local pending changes...", err);
       }
     }, 1500); // 1.5s debounce
 
