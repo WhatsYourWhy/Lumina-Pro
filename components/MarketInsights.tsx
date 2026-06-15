@@ -36,6 +36,8 @@ const MarketInsights: React.FC<Props> = ({ brand, analysis, setAnalysis }) => {
   const analyzeMarket = async () => {
     setLoading(true);
     setAnalysis(null);
+    setSources([]);
+    setRabbitHoles([]);
     try {
       const response = await ai.models.generateContent({
         model: config.models.defaultFlash,

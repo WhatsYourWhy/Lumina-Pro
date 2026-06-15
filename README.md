@@ -118,7 +118,7 @@ copy .env.example .env.local
 | `FRONTEND_URL` | No | `server.js` | Additional allowed CORS origin for production deployments. `http://localhost:3000` is always allowed |
 | `NODE_ENV` | No | `server.js` | When set to `test`, the proxy is exported without calling `app.listen()` so Vitest can mount it. Leave unset for normal dev/prod runs |
 
-> \* The app runs in **offline mode** when Supabase keys are missing. Auth and persistence are disabled on the frontend, and the backend proxy runs without enforcing JWT authentication. When configured, JWT authentication is strictly verified.
+> \* The app runs in **offline mode** when Supabase keys are missing. Auth and persistence are disabled on the frontend, and the backend proxy runs without enforcing JWT authentication. When configured, JWT authentication is strictly verified. When Supabase is active, frontend clients in offline mode cannot use the proxy server's AI endpoints (as they do not possess a valid Supabase JWT). To use AI features in offline mode under these conditions, users must enter a personal Gemini API key in the app's Settings to communicate directly with Google's API.
 
 ### 3. Initialize the Database (Optional)
 
@@ -195,6 +195,15 @@ Browser  ──▶  Vite dev server (/api/*)  ──▶  Express proxy (:3001)  
 ```
 
 Users can also paste a personal API key in the app UI, which bypasses the proxy and calls Google directly from the browser.
+
+---
+
+## Security Posture & Production Deployment
+
+When deploying this workbench publicly, please note the following security configuration aspects:
+
+1. **Proxy Posture When Unconfigured**: If the server is run without Supabase URL and anonymous keys, it permits unrestricted proxy access to the Gemini API (`open-proxy-when-unconfigured` behavior). In `production` (`NODE_ENV=production`), this behavior is blocked and the server fails-safe with a `500 Internal Server Error` to prevent accidental proxy exposure.
+2. **User Sign-up Restriction**: By default, the Supabase schema allows public user registration. For public production deployments, it is recommended to disable sign-ups or restrict emails in the Supabase Project Settings under **Auth > Provider Settings** to control access to the proxy and keep API costs bounded.
 
 ---
 

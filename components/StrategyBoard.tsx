@@ -119,6 +119,9 @@ const StrategyBoard: React.FC<Props> = ({ brand, setBrand, history, onNewEntry }
       });
       
       const content = response.text;
+      if (!content) {
+        throw new Error("No strategic analysis content returned.");
+      }
       setCurrentAnalysis(content);
       
       // Auto-save to history

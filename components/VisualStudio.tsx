@@ -88,7 +88,7 @@ const VisualStudio: React.FC<Props> = ({ brand }) => {
               className="w-full py-3.5 bg-indigo-500 hover:bg-indigo-600 disabled:bg-slate-800 text-white rounded-xl font-bold transition-all shadow-lg flex items-center justify-center gap-2 text-sm"
             >
               {loading ? (
-                <><Loader2 className="animate-spin size={16}" /> Generating Asset...</>
+                <><Loader2 className="animate-spin" size={16} /> Generating Asset...</>
               ) : (
                 <><Wand2 size={16} /> Generate Concept</>
               )}
