@@ -1,5 +1,29 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
+
+// Mock supabase SDK before importing server.js
+vi.mock('@supabase/supabase-js', () => {
+  // Set required environment variables so the server instantiates the client
+  process.env.VITE_SUPABASE_URL = 'https://mock.supabase.co';
+  process.env.VITE_SUPABASE_ANON_KEY = 'mock-anon-key';
+
+  return {
+    createClient: vi.fn().mockImplementation(() => ({
+      auth: {
+        getUser: vi.fn().mockImplementation(async (token) => {
+          if (token === 'valid-token') {
+            return { data: { user: { id: 'test-user-id' } }, error: null };
+          }
+          if (token === 'expired-token') {
+            return { data: { user: null }, error: new Error('Token expired') };
+          }
+          return { data: { user: null }, error: new Error('Invalid token') };
+        })
+      }
+    }))
+  };
+});
+
 import app, { __resetUpstreamHealthCache } from './server.js';
 
 describe('Gemini Proxy Server', () => {
@@ -182,6 +206,52 @@ describe('Gemini Proxy Server', () => {
         if (original === undefined) delete process.env.GEMINI_API_KEY;
         else process.env.GEMINI_API_KEY = original;
       }
+    });
+  });
+
+  describe('Supabase JWT Authentication Gateway', () => {
+    it('should return 401 if Authorization header is missing on protected proxy routes', async () => {
+      const res = await request(app).get('/v1beta/models');
+      expect(res.status).toBe(401);
+      expect(res.body.error).toContain('Missing Authorization header');
+    });
+
+    it('should return 401 if Authorization header is malformed', async () => {
+      const res = await request(app)
+        .get('/v1beta/models')
+        .set('Authorization', 'InvalidFormat token123');
+      expect(res.status).toBe(401);
+      expect(res.body.error).toContain('Malformed Authorization header');
+    });
+
+    it('should return 401 if token is expired or invalid', async () => {
+      const res = await request(app)
+        .get('/v1beta/models')
+        .set('Authorization', 'Bearer expired-token');
+      expect(res.status).toBe(401);
+      expect(res.body.error).toContain('Invalid or expired token');
+    });
+
+    it('should allow the request through to the proxy if the JWT is valid and the path is approved', async () => {
+      const res = await request(app)
+        .get('/v1beta/models')
+        .set('Authorization', 'Bearer valid-token');
+      
+      console.log('VALID TOKEN RESPONSE BODY:', res.body);
+      expect(res.status).not.toBe(401);
+    });
+
+    it('should still reject unauthorized proxy paths even with a valid token', async () => {
+      const res = await request(app)
+        .get('/v1beta/invalid-path')
+        .set('Authorization', 'Bearer valid-token');
+      expect(res.status).toBe(404); // pathFilter blocks it and falls back to Express 404
+    });
+
+    it('should not require authentication on public health check endpoints', async () => {
+      const res = await request(app).get('/health');
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('ok');
     });
   });
 });

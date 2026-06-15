@@ -4,8 +4,15 @@ import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import helmet from 'helmet';
+import { createClient } from '@supabase/supabase-js';
 
 dotenv.config({ path: '.env.local' });
+
+const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey);
+
+export const supabase = isSupabaseConfigured ? createClient(supabaseUrl, supabaseAnonKey) : null;
 
 const app = express();
 // Only trust proxy headers when running behind a known/sanitizing reverse proxy.
@@ -132,6 +139,45 @@ app.get('/health/upstream', upstreamHealthLimiter, async (req, res) => {
 });
 
 app.use(limiter);
+
+// Authentication middleware to verify Supabase JWT before proxying to Gemini
+app.use(async (req, res, next) => {
+  const isProxyRoute = req.path.startsWith('/v1beta/models') || req.path.startsWith('/v1/models');
+  if (!isProxyRoute) {
+    return next();
+  }
+
+  if (!isSupabaseConfigured) {
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(500).json({ error: 'Internal Server Error: Supabase is not configured on this server.' });
+    }
+    return next();
+  }
+
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    return res.status(401).json({ error: 'Unauthorized: Missing Authorization header' });
+  }
+
+  const parts = authHeader.split(' ');
+  if (parts.length !== 2 || parts[0] !== 'Bearer') {
+    return res.status(401).json({ error: 'Unauthorized: Malformed Authorization header' });
+  }
+
+  const token = parts[1];
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    if (error || !user) {
+      return res.status(401).json({ error: 'Unauthorized: Invalid or expired token' });
+    }
+    // Delete authorization headers before proxying so Google does not treat it as OAuth credentials
+    delete req.headers['authorization'];
+    delete req.headers['Authorization'];
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: 'Unauthorized: Authentication validation error' });
+  }
+});
 
 // Fail fast with a clear message when no upstream key is configured.
 app.use((req, res, next) => {
