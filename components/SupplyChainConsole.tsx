@@ -58,11 +58,18 @@ const SupplyChainConsole: React.FC<Props> = ({ brand, intel, setIntel }) => {
     if (!route) return;
     setMonitoring(true);
     try {
-      const response = await ai.models.generateContent({
+      const searchResponse = await ai.models.generateContent({
         model: config.models.defaultFlash,
-        contents: `Find CURRENT active logistical disruptions or bottlenecks affecting transit around/between: "${route}". Return ONLY a JSON array of objects with keys: "title", "summary", "severity" (choose from: high, medium, low). No prose, no code fences — just the JSON array.`,
+        contents: `Find CURRENT active logistical disruptions or bottlenecks affecting transit around/between: "${route}".`,
         config: {
-          tools: [{ googleSearch: {} }],
+          tools: [{ googleSearch: {} }]
+        }
+      });
+
+      const extractResponse = await ai.models.generateContent({
+        model: config.models.defaultFlash,
+        contents: `Based on this text: "${searchResponse.text}", extract a JSON array of objects representing active logistical disruptions or bottlenecks with keys: "title", "summary", "severity" (choose from: high, medium, low).`,
+        config: {
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.ARRAY,
@@ -79,7 +86,7 @@ const SupplyChainConsole: React.FC<Props> = ({ brand, intel, setIntel }) => {
         }
       });
 
-      const parsed = parseCleanJson<LogisticsDisruption[] | null>(response.text, null);
+      const parsed = parseCleanJson<LogisticsDisruption[] | null>(extractResponse.text, null);
       if (!parsed) {
         throw new Error("AI extraction did not return a valid list of logistical disruptions.");
       }

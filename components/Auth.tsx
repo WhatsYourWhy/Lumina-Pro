@@ -80,14 +80,19 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess, onOfflineMode }) => {
           </button>
 
           {onOfflineMode && (
-            <button 
-              type="button" 
-              onClick={onOfflineMode}
-              disabled={loading}
-              className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
-            >
-              Use Offline (Local Storage)
-            </button>
+            <div className="space-y-2">
+              <button 
+                type="button" 
+                onClick={onOfflineMode}
+                disabled={loading}
+                className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
+              >
+                Use Offline (Local Storage)
+              </button>
+              <p className="text-[10px] text-center text-slate-500 max-w-[320px] mx-auto leading-relaxed">
+                Note: AI features in Offline Mode require entering a personal Gemini API key in Settings when Supabase is configured.
+              </p>
+            </div>
           )}
         </form>
 
