@@ -144,10 +144,12 @@ Lint: `npx tsc --noEmit`
 Entry points:
 - Frontend: `index.html` -> `index.tsx` -> `App.tsx`
 - Backend Proxy: `server.js`
-- AI Models Config: `config.ts` (`defaultPro`: `gemini-3.1-pro-preview`, `defaultFlash`: `gemini-3.6-flash`, `defaultImage`: `gemini-3.1-flash-image`)
+- AI Models Config: `config.ts` (`defaultPro`: `gemini-3.1-pro-preview`, `defaultFlash`: `gemini-3.6-flash`, `defaultImage`: `imagen-3.0-generate-002`)
 Directories that are off limits: `node_modules/`, `dist/`, `.git/`, `venv/`
 Files that must never be edited by an agent: `.env.local`, `package-lock.json` (unless dependencies are explicitly added or updated by request)
 Known sharp edges:
 - The Express proxy backend (`server.js`) injects `GEMINI_API_KEY` at the edge. Do not expose `GEMINI_API_KEY` in frontend client bundles.
 - The app operates in **Offline Mode** when Supabase environment keys are missing, persisting state to LocalStorage. Maintain both online and offline paths.
 - Proxy endpoints `/health` and `/health/upstream` are registered before rate limiters to ensure monitoring availability.
+- `ai.models.generateImages` in `@google/genai` requires an Imagen model ID (`imagen-3.0-generate-002`). Do not pass Gemini model IDs to `generateImages`.
+- PDF export routines using `html2canvas` + `jsPDF` must slice canvas height iteratively (`canvasWidth * 1.414`) to prevent multi-page document clipping.
