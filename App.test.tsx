@@ -14,6 +14,7 @@ vi.mock('./lib/supabase', () => {
     upsert: vi.fn().mockResolvedValue({ data: null, error: null })
   });
   return {
+    isSupabaseConfigured: true,
     supabase: {
       auth: {
         getSession: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
@@ -91,7 +92,7 @@ describe('App Component State Sync Fallback', () => {
     });
     
     await waitFor(() => {
-      expect(screen.getByText('Test Offline Company')).toBeInTheDocument();
+      expect(screen.getAllByText('Test Offline Company').length).toBeGreaterThan(0);
     });
   });
 
@@ -136,8 +137,43 @@ describe('App Component State Sync Fallback', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText('Local Pending Brand Name')).toBeInTheDocument();
+      expect(screen.getAllByText('Local Pending Brand Name').length).toBeGreaterThan(0);
     });
     expect(screen.queryByText('Supabase Brand Name')).not.toBeInTheDocument();
+  });
+
+  it('resets the active workspace from Settings and keeps saved clients', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({ data: { session: null }, error: null } as any);
+    localStorage.setItem('SHANK_OFFLINE_BRAND_offline-local-user', JSON.stringify({ name: 'Reset Me Inc', industry: 'Ops', description: '', tone: '' }));
+    localStorage.setItem('SHANK_OFFLINE_INTEL_offline-local-user', JSON.stringify({ strategyHistory: [{ type: 'SWOT', timestamp: 't', content: 'c' }], marketAnalysis: null, contentDrafts: [], logistics: null }));
+    localStorage.setItem('SHANK_OFFLINE_CLIENTS_offline-local-user', JSON.stringify([{ id: 'kept', name: 'Kept Client', savedAt: 't', brand: { name: 'Kept Client', industry: '', description: '', tone: '' }, intel: { strategyHistory: [], marketAnalysis: null, contentDrafts: [], logistics: null } }]));
+
+    await act(async () => {
+      render(<App />);
+    });
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 20));
+    });
+    await act(async () => {
+      screen.getByRole('button', { name: /Use Offline/i }).click();
+    });
+    await waitFor(() => {
+      expect(screen.getAllByText('Reset Me Inc').length).toBeGreaterThan(0);
+    });
+
+    await act(async () => {
+      screen.getByTitle('Settings').click();
+    });
+    await act(async () => {
+      screen.getByText('Reset active workspace').click();
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByText('Reset Me Inc')).not.toBeInTheDocument();
+    });
+    expect(screen.getByText('1 saved client')).toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem('SHANK_OFFLINE_BRAND_offline-local-user') || '{}').name).toBe('');
+    expect(JSON.parse(localStorage.getItem('SHANK_OFFLINE_CLIENTS_offline-local-user') || '[]')).toHaveLength(1);
   });
 });

@@ -109,5 +109,15 @@ describe('Markdown Parser Library', () => {
     const strongEl = screen.getByText('World');
     expect(strongEl.tagName).toBe('STRONG');
   });
-});
 
+  it('renders pipe tables as HTML tables and skips the separator row', () => {
+    const md = ['| Metric | Value |', '|---|---|', '| Dwell | **21 d** |', '| Fill | 97% |'].join('\n');
+    const { container } = render(<>{renderMarkdown(md)}</>);
+    const table = container.querySelector('table');
+    expect(table).not.toBeNull();
+    expect(container.querySelectorAll('th')).toHaveLength(2);
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(2);
+    expect(container.querySelector('strong')?.textContent).toBe('21 d');
+    expect(container.textContent).not.toContain('---');
+  });
+});

@@ -147,9 +147,12 @@ Entry points:
 - AI Models Config: `config.ts` (`defaultPro`: `gemini-3.1-pro-preview`, `defaultFlash`: `gemini-3.6-flash`, `defaultImage`: `imagen-3.0-generate-002`)
 Directories that are off limits: `node_modules/`, `dist/`, `.git/`, `venv/`
 Files that must never be edited by an agent: `.env.local`, `package-lock.json` (unless dependencies are explicitly added or updated by request)
+Shared building blocks: `components/BriefActions.tsx` (copy/.md/PDF/clear), `lib/report.ts` (full-report sections), `lib/download.ts` (file downloads)
 Known sharp edges:
 - The Express proxy backend (`server.js`) injects `GEMINI_API_KEY` at the edge. Do not expose `GEMINI_API_KEY` in frontend client bundles.
 - The app operates in **Offline Mode** when Supabase environment keys are missing, persisting state to LocalStorage. Maintain both online and offline paths.
 - Proxy endpoints `/health` and `/health/upstream` are registered before rate limiters to ensure monitoring availability.
 - `ai.models.generateImages` in `@google/genai` requires an Imagen model ID (`imagen-3.0-generate-002`). Do not pass Gemini model IDs to `generateImages`.
-- PDF export routines using `html2canvas` + `jsPDF` must slice canvas height iteratively (`canvasWidth * 1.414`) to prevent multi-page document clipping.
+- PDF export is text-based via `lib/pdf.ts` (jsPDF only). Do not reintroduce `html2canvas`: Tailwind v4 emits `oklch()` colors that html2canvas 1.x cannot parse, so screenshot exports throw. Build documents with `buildPdf`/`savePdf` and the shared `BriefActions` component.
+- All workspace persistence goes through `lib/persistence.ts`. The `global_intel.workspace_meta` jsonb column (added in `supabase_migrations/2026-09-03_workspace_meta.sql`) stores the client library and per-section state; `saveIntelRemote` falls back to the core columns when the column is missing, so keep that fallback intact.
+- Surface AI failures through `describeAiError` in `lib/errors.ts` so users get actionable messages instead of raw SDK text.

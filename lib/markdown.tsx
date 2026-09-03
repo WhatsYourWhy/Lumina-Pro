@@ -23,6 +23,46 @@ export const renderMarkdown = (
   const renderedElements: React.ReactNode[] = [];
   let currentList: { text: string; key: number }[] = [];
   let currentNumList: { text: string; key: number }[] = [];
+  let currentTable: { cells: string[]; key: number }[] = [];
+
+  const tableSeparator = /^\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$/;
+  const splitRow = (line: string) => {
+    let inner = line.trim();
+    if (inner.startsWith('|')) inner = inner.slice(1);
+    if (inner.endsWith('|')) inner = inner.slice(0, -1);
+    return inner.split('|').map(cell => cell.trim());
+  };
+
+  const flushTable = (index: number) => {
+    if (currentTable.length === 0) return;
+    const [header, ...body] = currentTable;
+    const borderClass = theme === 'light' ? 'border-slate-200' : 'border-slate-800';
+    const headClass = theme === 'light' ? 'bg-slate-100 text-slate-900' : 'bg-slate-900/60 text-slate-100';
+    const cellSize = compact ? 'text-[11px] px-2 py-1.5' : 'text-xs px-3 py-2';
+    renderedElements.push(
+      <div key={`table-${index}`} className={`overflow-x-auto my-3 rounded-lg border ${borderClass}`}>
+        <table className="w-full border-collapse text-left">
+          <thead>
+            <tr className={headClass}>
+              {header.cells.map((cell, c) => (
+                <th key={c} className={`font-bold ${cellSize} border-b ${borderClass}`}>{parseBold(cell, theme)}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {body.map((row) => (
+              <tr key={row.key} className={`border-b last:border-b-0 ${borderClass}`}>
+                {header.cells.map((_, c) => (
+                  <td key={c} className={`${cellSize} align-top ${rootColorClass}`}>{parseBold(row.cells[c] ?? '', theme)}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+    currentTable = [];
+  };
 
   const flushLists = (index: number) => {
     if (currentList.length > 0) {
@@ -59,6 +99,16 @@ export const renderMarkdown = (
 
   lines.forEach((line, index) => {
     const trimmed = line.trim();
+
+    // Markdown tables: | a | b | rows with an optional |---|---| separator
+    if (trimmed.startsWith('|')) {
+      flushLists(index);
+      if (!tableSeparator.test(trimmed)) {
+        currentTable.push({ cells: splitRow(trimmed), key: index });
+      }
+      return;
+    }
+    flushTable(index);
 
     // Check for unordered list items
     if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
@@ -130,8 +180,9 @@ export const renderMarkdown = (
     }
   });
 
-  // Flush any remaining lists
+  // Flush any remaining lists and tables
   flushLists(lines.length);
+  flushTable(lines.length);
 
   return (
     <div className={`${spaceClass} ${rootColorClass}`}>

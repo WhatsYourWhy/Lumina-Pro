@@ -2,17 +2,21 @@ import React, { useState } from 'react';
 import { ai } from '../lib/api';
 import { config } from '../config';
 import { BrandProfile } from '../types';
+import { describeAiError } from '../lib/errors';
+import { safeFilename } from '../lib/download';
 import toast from 'react-hot-toast';
-import { ImageIcon, Wand2, Download, Loader2, AlertCircle } from 'lucide-react';
+import { ImageIcon, Wand2, Download, Loader2, AlertCircle, Trash2 } from 'lucide-react';
 
 interface Props {
   brand: BrandProfile;
+  /** Last generated image (data URL). Held by the app so it survives tab switches. */
+  image: string | null;
+  setImage: (image: string | null) => void;
 }
 
-const VisualStudio: React.FC<Props> = ({ brand }) => {
+const VisualStudio: React.FC<Props> = ({ brand, image, setImage }) => {
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
-  const [resultImage, setResultImage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const presets = [
@@ -25,12 +29,12 @@ const VisualStudio: React.FC<Props> = ({ brand }) => {
   const generateImage = async () => {
     if (!prompt) return;
     setLoading(true);
-    setResultImage(null);
+    setImage(null);
     setError(null);
     try {
       const sanitizedPrompt = prompt.trim().substring(0, 1000);
       const fullPrompt = `High quality professional photography for brand: ${brand.name || 'Shank Strategy client'}. ${sanitizedPrompt}. Aesthetic: Clean, premium, commercial. Industry: ${brand.industry || 'Logistics & Consulting'}.`;
-      
+
       const response = await ai.models.generateImages({
         model: config.models.defaultImage,
         prompt: fullPrompt,
@@ -42,14 +46,15 @@ const VisualStudio: React.FC<Props> = ({ brand }) => {
 
       const base64ImageBytes = response.generatedImages?.[0]?.image?.imageBytes;
       if (base64ImageBytes) {
-        setResultImage(`data:image/png;base64,${base64ImageBytes}`);
+        setImage(`data:image/png;base64,${base64ImageBytes}`);
       } else {
         throw new Error("No image data returned from model.");
       }
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "Failed to generate image. Please try again.");
-      toast.error(err.message || "Failed to generate image.");
+      const message = describeAiError(err);
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -67,7 +72,7 @@ const VisualStudio: React.FC<Props> = ({ brand }) => {
 
             <div>
               <label className="text-[10px] font-bold text-slate-500 uppercase block mb-2 tracking-widest">Visual Concept Prompt</label>
-              <textarea 
+              <textarea
                 placeholder="A clean presentation slide background, modern corporate office..."
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
@@ -82,7 +87,7 @@ const VisualStudio: React.FC<Props> = ({ brand }) => {
               </div>
             )}
 
-            <button 
+            <button
               onClick={generateImage}
               disabled={loading || !prompt}
               className="w-full py-3.5 bg-indigo-500 hover:bg-indigo-600 disabled:bg-slate-800 text-white rounded-xl font-bold transition-all shadow-lg flex items-center justify-center gap-2 text-sm"
@@ -125,17 +130,24 @@ const VisualStudio: React.FC<Props> = ({ brand }) => {
                   <p className="text-slate-500 text-[10px] max-w-[200px] mx-auto tracking-wide">Applying clean, premium lighting and consulting presentation aesthetics.</p>
                 </div>
               </div>
-            ) : resultImage ? (
+            ) : image ? (
               <div className="w-full h-full relative animate-in fade-in duration-500 p-2">
-                <img src={resultImage} alt="Strategic Asset" className="w-full h-full object-contain rounded-2xl bg-black/20" />
-                <div className="absolute top-5 right-5 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
-                   <a 
-                    href={resultImage} 
-                    download={`shank-strategy-${brand.name || 'asset'}.png`}
+                <img src={image} alt="Strategic Asset" className="w-full h-full object-contain rounded-2xl bg-black/20" />
+                <div className="absolute top-5 right-5 flex items-center gap-2 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
+                   <a
+                    href={image}
+                    download={`shank-strategy-${safeFilename(brand.name, 'asset')}.png`}
                     className="p-2.5 bg-slate-950/80 backdrop-blur-md hover:bg-slate-900 border border-slate-800 rounded-xl text-white flex items-center gap-2 text-xs font-bold"
                    >
                      <Download size={18} /> Download Image
                    </a>
+                   <button
+                    onClick={() => setImage(null)}
+                    title="Clear image"
+                    className="p-2.5 bg-slate-950/80 backdrop-blur-md hover:bg-red-500/20 border border-slate-800 hover:border-red-500/40 rounded-xl text-slate-300 hover:text-red-400 flex items-center gap-2 text-xs font-bold"
+                   >
+                     <Trash2 size={18} />
+                   </button>
                 </div>
               </div>
             ) : (

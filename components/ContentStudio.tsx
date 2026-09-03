@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { ai } from '../lib/api';
 import { config } from '../config';
 import { BrandProfile } from '../types';
+import { describeAiError } from '../lib/errors';
+import { downloadMarkdown, safeFilename } from '../lib/download';
 import toast from 'react-hot-toast';
-import { Linkedin, Send, Copy, Loader2, Award } from 'lucide-react';
+import { Linkedin, Send, Copy, Loader2, Award, Trash2, X, Download } from 'lucide-react';
 
 interface Props {
   brand: BrandProfile;
@@ -28,7 +30,7 @@ const ContentStudio: React.FC<Props> = ({ brand, savedPosts, setSavedPosts }) =>
     if (!topic) return;
     setLoading(true);
     try {
-      const tonePrompt = 
+      const tonePrompt =
         selectedTone === 'analytical' ? 'Write in a highly analytical, data-driven, technical, process-oriented tone focusing on logistics metrics.' :
         selectedTone === 'crisis' ? 'Write in a tactical, crisis-mitigation, contingency-planning tone focusing on resilience and continuity.' :
         selectedTone === 'visionary' ? 'Write in an inspiring, strategic, growth-focused, and visionary entrepreneurial tone.' :
@@ -36,15 +38,16 @@ const ContentStudio: React.FC<Props> = ({ brand, savedPosts, setSavedPosts }) =>
 
       const response = await ai.models.generateContent({
         model: config.models.defaultPro,
-        contents: `Create 3 engaging professional LinkedIn posts for the company "${brand.name || 'Shank Strategy'}" in the "${brand.industry || 'Management Consulting'}" sector. 
-        Topic: "${topic}". 
-        
+        contents: `Create 3 engaging professional LinkedIn posts for the company "${brand.name || config.firm.shortName}" in the "${brand.industry || 'Management Consulting'}" sector.
+        Topic: "${topic}".
+
         Guidelines:
         - Brand Tone: "${brand.tone || 'Professional'}"
         - Section Tone: ${tonePrompt}
-        - Keep posts clean and well-spaced. Ensure they are directly usable for professional networking.`,
+        - Keep posts clean and well-spaced. Ensure they are directly usable for professional networking.
+        - Label each post exactly "Post 1:", "Post 2:", "Post 3:" on its own line.`,
       });
-      
+
       const content = response.text || '';
       const matches = [...content.matchAll(/Post \d+:?/gi)];
       const splitPosts: string[] = [];
@@ -65,14 +68,44 @@ const ContentStudio: React.FC<Props> = ({ brand, savedPosts, setSavedPosts }) =>
           splitPosts.push(content.trim());
         }
       }
-      setSavedPosts([...splitPosts, ...postsList].slice(0, 9));
+      if (splitPosts.length === 0) {
+        throw new Error('The model returned no usable post text. Try a more specific topic.');
+      }
+      setSavedPosts([...splitPosts, ...postsList]);
       toast.success('Generated drafts successfully!');
     } catch (error: any) {
       console.error(error);
-      toast.error('Failed to generate content. ' + (error.message || 'Please try again.'));
+      toast.error(describeAiError(error));
     } finally {
       setLoading(false);
     }
+  };
+
+  const copyPost = async (post: string) => {
+    try {
+      await navigator.clipboard.writeText(post);
+      toast.success('Copied to clipboard');
+    } catch (err) {
+      console.error('Clipboard write failed', err);
+      toast.error('Could not copy. Your browser blocked clipboard access.');
+    }
+  };
+
+  const deletePost = (index: number) => {
+    setSavedPosts(postsList.filter((_, i) => i !== index));
+  };
+
+  const clearAll = () => {
+    if (!window.confirm(`Delete all ${postsList.length} saved drafts? This cannot be undone.`)) return;
+    setSavedPosts([]);
+    toast.success('Drafts cleared.');
+  };
+
+  const downloadAll = () => {
+    const filename = `LinkedIn_Drafts_${safeFilename(brand.name, 'Client')}.md`;
+    const body = postsList.map((post, i) => `## Draft ${i + 1}\n\n${post}`).join('\n\n---\n\n');
+    downloadMarkdown(filename, `# LinkedIn Drafts: ${brand.name || config.firm.shortName}\n\n${body}\n`);
+    toast.success(`Downloaded ${filename}`);
   };
 
   return (
@@ -84,18 +117,19 @@ const ContentStudio: React.FC<Props> = ({ brand, savedPosts, setSavedPosts }) =>
             <p className="text-[10px] text-slate-500 font-medium">Input a topic to generate structured corporate social media posts tailored to your consulting practice.</p>
           </div>
           <div className="relative">
-            <input 
+            <input
               placeholder="E.g., Supply Chain Bullwhip Mitigations, Six Sigma DMAIC Best Practices..."
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !loading && topic) generatePosts(); }}
               className="w-full bg-slate-900 border border-slate-700/50 rounded-xl px-5 py-4 pr-32 text-xs focus:outline-none focus:border-indigo-500 text-slate-200 transition-colors"
             />
-            <button 
-              onClick={generatePosts} 
+            <button
+              onClick={generatePosts}
               disabled={loading || !topic}
               className="absolute right-2 top-2 bottom-2 px-6 bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-white rounded-lg font-black text-xs flex items-center gap-2 transition-all active:scale-[0.98]"
             >
-              {loading ? <Loader2 className="animate-spin" size={16}/> : <Send size={16} />} 
+              {loading ? <Loader2 className="animate-spin" size={16}/> : <Send size={16} />}
               Draft
             </button>
           </div>
@@ -122,32 +156,52 @@ const ContentStudio: React.FC<Props> = ({ brand, savedPosts, setSavedPosts }) =>
 
       <div className="flex-1 overflow-y-auto pr-1">
         {postsList.length > 0 ? (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in fade-in duration-500">
-            {postsList.map((post, idx) => (
-              <div key={idx} className="glass rounded-3xl p-6 border-slate-800/50 space-y-4 shadow-xl flex flex-col justify-between hover:border-slate-700 transition-colors">
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center pb-2 border-b border-slate-800">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center shadow-sm">
-                        <Linkedin size={12} fill="white" className="text-white"/>
-                      </div>
-                      <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">LinkedIn Draft {idx + 1}</span>
-                    </div>
-                    <button 
-                      onClick={() => {
-                        navigator.clipboard.writeText(post);
-                        toast.success('Copied to clipboard');
-                      }} 
-                      className="text-slate-500 hover:text-white p-1 rounded hover:bg-slate-800 transition-colors"
-                      title="Copy to Clipboard"
-                    >
-                      <Copy size={14}/>
-                    </button>
-                  </div>
-                  <p className="text-slate-300 text-[11px] whitespace-pre-wrap leading-relaxed font-medium">{post}</p>
-                </div>
+          <div className="space-y-4 animate-in fade-in duration-500">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{postsList.length} saved draft{postsList.length === 1 ? '' : 's'}</span>
+              <div className="flex items-center gap-2">
+                <button onClick={downloadAll} title="Download all drafts (.md)" className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border border-slate-700">
+                  <Download size={14} /> <span className="hidden sm:inline">.md</span>
+                </button>
+                <button onClick={clearAll} title="Clear all drafts" className="p-2 bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-400 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border border-slate-700 hover:border-red-500/40">
+                  <Trash2 size={14} /> <span className="hidden sm:inline">Clear all</span>
+                </button>
               </div>
-            ))}
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {postsList.map((post, idx) => (
+                <div key={idx} className="glass rounded-3xl p-6 border-slate-800/50 space-y-4 shadow-xl flex flex-col justify-between hover:border-slate-700 transition-colors">
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center pb-2 border-b border-slate-800">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center shadow-sm">
+                          <Linkedin size={12} fill="white" className="text-white"/>
+                        </div>
+                        <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">LinkedIn Draft {idx + 1}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => copyPost(post)}
+                          className="text-slate-500 hover:text-white p-1 rounded hover:bg-slate-800 transition-colors"
+                          title="Copy to Clipboard"
+                        >
+                          <Copy size={14}/>
+                        </button>
+                        <button
+                          onClick={() => deletePost(idx)}
+                          className="text-slate-500 hover:text-red-400 p-1 rounded hover:bg-red-500/10 transition-colors"
+                          title={`Delete draft ${idx + 1}`}
+                          aria-label={`Delete draft ${idx + 1}`}
+                        >
+                          <X size={14}/>
+                        </button>
+                      </div>
+                    </div>
+                    <p className="text-slate-300 text-[11px] whitespace-pre-wrap leading-relaxed font-medium">{post}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         ) : (
           <div className="h-full min-h-[300px] flex flex-col items-center justify-center opacity-20 text-center py-20 grayscale">

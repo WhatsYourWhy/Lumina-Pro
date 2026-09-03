@@ -1,8 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import React from 'react';
+import React, { useState } from 'react';
 import MarketInsights from './MarketInsights';
 import { ai } from '../lib/api';
+import { GlobalIntelState } from '../types';
+import { createEmptyIntel } from '../lib/persistence';
 
 vi.mock('../lib/api', () => ({
   ai: {
@@ -12,6 +14,11 @@ vi.mock('../lib/api', () => ({
   }
 }));
 
+vi.mock('../lib/pdf', () => ({
+  savePdf: vi.fn(),
+  formatReportDate: () => 'January 1, 2026'
+}));
+
 // Provide basic matchMedia mock for JSDOM in tests
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
@@ -19,7 +26,7 @@ Object.defineProperty(window, 'matchMedia', {
     matches: false,
     media: query,
     onchange: null,
-    addListener: vi.fn(), 
+    addListener: vi.fn(),
     removeListener: vi.fn(),
     addEventListener: vi.fn(),
     removeEventListener: vi.fn(),
@@ -27,21 +34,32 @@ Object.defineProperty(window, 'matchMedia', {
   })),
 });
 
-describe('MarketInsights Component', () => {
-  const mockBrand = {
-    name: 'Acme Logistics',
-    industry: 'Supply Chain Consulting',
-    description: 'B2B logistics strategy.',
-    tone: 'Professional & Direct'
-  };
+const mockBrand = {
+  name: 'Acme Logistics',
+  industry: 'Supply Chain Consulting',
+  description: 'B2B logistics strategy.',
+  tone: 'Professional & Direct'
+};
 
+/** Mirrors App: applies partial patches to a real intel object so the UI reflects them. */
+const Harness: React.FC<{ initial?: Partial<GlobalIntelState>; onUpdate?: (p: Partial<GlobalIntelState>) => void }> = ({ initial, onUpdate }) => {
+  const [intel, setIntel] = useState<GlobalIntelState>({ ...createEmptyIntel(), ...initial });
+  return (
+    <MarketInsights
+      brand={mockBrand}
+      intel={intel}
+      onUpdate={(patch) => { onUpdate?.(patch); setIntel(prev => ({ ...prev, ...patch })); }}
+    />
+  );
+};
+
+describe('MarketInsights Component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it('renders presets and empty state message', () => {
-    const mockSetAnalysis = vi.fn();
-    render(<MarketInsights brand={mockBrand} analysis={null} setAnalysis={mockSetAnalysis} />);
+    render(<Harness />);
 
     expect(screen.getByText('Container Freight Indices')).toBeInTheDocument();
     expect(screen.getByText('No Active Synthesis')).toBeInTheDocument();
@@ -49,8 +67,7 @@ describe('MarketInsights Component', () => {
   });
 
   it('selects a preset search query', () => {
-    const mockSetAnalysis = vi.fn();
-    render(<MarketInsights brand={mockBrand} analysis={null} setAnalysis={mockSetAnalysis} />);
+    render(<Harness />);
 
     const presetBtn = screen.getByText('Container Freight Indices');
     fireEvent.click(presetBtn);
@@ -59,9 +76,25 @@ describe('MarketInsights Component', () => {
     expect(input).toBeInTheDocument();
   });
 
+  it('restores a persisted analysis, sources, and drilldowns when remounted', () => {
+    render(
+      <Harness initial={{
+        marketQuery: 'Persisted query',
+        marketAnalysis: 'Persisted analysis text',
+        marketSources: [{ web: { title: 'Saved Source', uri: 'https://example.com/saved' } }],
+        marketDrilldowns: ['Persisted drilldown question?']
+      }} />
+    );
+
+    expect(screen.getByText('Persisted analysis text')).toBeInTheDocument();
+    expect(screen.getByText('Saved Source')).toBeInTheDocument();
+    expect(screen.getByText(/"Persisted drilldown question\?"/)).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Persisted query')).toBeInTheDocument();
+  });
+
   it('calls generateContent and extracts grounding metadata sources', async () => {
-    const mockSetAnalysis = vi.fn();
-    
+    const onUpdate = vi.fn();
+
     vi.mocked(ai.models.generateContent)
       .mockResolvedValueOnce({
         text: 'Mocked market analysis content',
@@ -77,7 +110,7 @@ describe('MarketInsights Component', () => {
         text: '["What are the 2026 container predictions?", "How does port dwell time impact rates?"]'
       } as any);
 
-    render(<MarketInsights brand={mockBrand} analysis={null} setAnalysis={mockSetAnalysis} />);
+    render(<Harness onUpdate={onUpdate} />);
 
     const searchBtn = screen.getByRole('button', { name: /Research Live/i });
     fireEvent.click(searchBtn);
@@ -86,8 +119,20 @@ describe('MarketInsights Component', () => {
       expect(ai.models.generateContent).toHaveBeenCalledTimes(2);
     });
 
-    expect(mockSetAnalysis).toHaveBeenCalledWith('Mocked market analysis content');
+    expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ marketAnalysis: 'Mocked market analysis content' }));
     expect(screen.getByText('Drewry World Container Index')).toBeInTheDocument();
     expect(screen.getByText(/"What are the 2026 container predictions\?"/i)).toBeInTheDocument();
+  });
+
+  it('clears the analysis and sources when the Clear button is confirmed', () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const onUpdate = vi.fn();
+
+    render(<Harness initial={{ marketAnalysis: 'Old analysis', marketSources: [{ web: { title: 'Old', uri: 'https://x.y' } }] }} onUpdate={onUpdate} />);
+
+    fireEvent.click(screen.getByTitle('Clear'));
+
+    expect(onUpdate).toHaveBeenCalledWith({ marketAnalysis: null, marketSources: [], marketDrilldowns: [] });
+    expect(screen.getByText('No Active Synthesis')).toBeInTheDocument();
   });
 });
