@@ -3,8 +3,10 @@ import { Type } from '@google/genai';
 import { ai } from '../lib/api';
 import { config } from '../config';
 import { renderMarkdown } from '../lib/markdown';
-import { BrandProfile, LogisticsDisruption } from '../types';
+import { BrandProfile, GlobalIntelState, LogisticsDisruption } from '../types';
 import { parseCleanJson } from '../lib/json';
+import { describeAiError } from '../lib/errors';
+import BriefActions from './BriefActions';
 import toast from 'react-hot-toast';
 import {
   Truck,
@@ -12,21 +14,23 @@ import {
   Loader2,
   Search,
   Navigation,
-  CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Trash2
 } from 'lucide-react';
 
 interface Props {
   brand: BrandProfile;
-  intel: string | null;
-  setIntel: (i: string | null) => void;
+  intel: GlobalIntelState;
+  onUpdate: (patch: Partial<GlobalIntelState>) => void;
 }
 
-const SupplyChainConsole: React.FC<Props> = ({ brand, intel, setIntel }) => {
-  const [route, setRoute] = useState('');
+const SupplyChainConsole: React.FC<Props> = ({ brand, intel, onUpdate }) => {
+  const summary = intel.logistics;
+  const disruptions = intel.logisticsDisruptions ?? [];
+
+  const [route, setRoute] = useState(intel.logisticsRoute || '');
   const [loading, setLoading] = useState(false);
   const [monitoring, setMonitoring] = useState(false);
-  const [disruptions, setDisruptions] = useState<LogisticsDisruption[]>([]);
 
   const routePresets = [
     { label: 'Transpacific Marine Corridor', route: 'Shanghai Port (PVG/SGH) to Port of Los Angeles (LAX)' },
@@ -37,7 +41,7 @@ const SupplyChainConsole: React.FC<Props> = ({ brand, intel, setIntel }) => {
   const analyzeSupplyChain = async () => {
     if (!route) return;
     setLoading(true);
-    setIntel(null);
+    onUpdate({ logisticsRoute: route, logistics: null });
     const prompt = `Analyze logistics and supply chain risks for: "${route}". Context: ${brand.name || 'Shank Strategy client'} in ${brand.industry || 'Logistics Operations'}. Identify transit bottlenecks, customs clearance nodes, port congestion, and risk mitigation strategies.`;
     try {
       const response = await ai.models.generateContent({
@@ -45,10 +49,10 @@ const SupplyChainConsole: React.FC<Props> = ({ brand, intel, setIntel }) => {
         contents: prompt,
         config: { tools: [{ googleSearch: {} }] }
       });
-      setIntel(response.text);
+      onUpdate({ logisticsRoute: route, logistics: response.text || null });
     } catch (error: any) {
       console.error(error);
-      toast.error("Failed to analyze supply chain logic. " + (error.message || ''));
+      toast.error(describeAiError(error));
     } finally {
       setLoading(false);
     }
@@ -87,16 +91,22 @@ const SupplyChainConsole: React.FC<Props> = ({ brand, intel, setIntel }) => {
       });
 
       const parsed = parseCleanJson<LogisticsDisruption[] | null>(extractResponse.text, null);
-      if (!parsed) {
+      if (!parsed || !Array.isArray(parsed)) {
         throw new Error("AI extraction did not return a valid list of logistical disruptions.");
       }
-      setDisruptions(parsed);
+      onUpdate({ logisticsRoute: route, logisticsDisruptions: parsed });
+      if (parsed.length === 0) toast.success('No active disruptions found for this route.');
     } catch (e: any) {
       console.error(e);
-      toast.error("Failed to scan live alerts. " + (e.message || ''));
+      toast.error(describeAiError(e));
     } finally {
       setMonitoring(false);
     }
+  };
+
+  const clearAlerts = () => {
+    if (!window.confirm('Clear the live disruption alerts for this route?')) return;
+    onUpdate({ logisticsDisruptions: [] });
   };
 
   return (
@@ -110,12 +120,13 @@ const SupplyChainConsole: React.FC<Props> = ({ brand, intel, setIntel }) => {
               <p className="text-[10px] text-slate-500 font-medium">Input shipping nodes or corridors to perform risk profiling and real-time mapping.</p>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <input
               value={route}
               onChange={(e) => setRoute(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !loading && route) analyzeSupplyChain(); }}
               placeholder="Transit Hubs, Ports, or Route Corridors..."
-              className="flex-1 bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-3 text-sm focus:outline-none transition-colors text-slate-200"
+              className="flex-1 min-w-[200px] bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-3 text-sm focus:outline-none transition-colors text-slate-200"
             />
             <button
               onClick={analyzeSupplyChain}
@@ -155,14 +166,26 @@ const SupplyChainConsole: React.FC<Props> = ({ brand, intel, setIntel }) => {
 
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 overflow-hidden min-h-[400px]">
         <div className="lg:col-span-7 flex flex-col glass rounded-3xl p-6 border-slate-800/50 shadow-xl overflow-y-auto">
-          <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-800">
+          <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-800 flex-wrap gap-3">
             <h3 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Operational Risk Summary</h3>
-            {loading && <span className="text-[9px] font-black text-indigo-400 uppercase animate-pulse">Running GIS Grounding...</span>}
+            {loading ? (
+              <span className="text-[9px] font-black text-indigo-400 uppercase animate-pulse">Running GIS Grounding...</span>
+            ) : (
+              <BriefActions
+                content={summary}
+                title="Logistics Risk Brief"
+                brand={brand}
+                meta={intel.logisticsRoute ? `Route: ${intel.logisticsRoute}` : undefined}
+                onClear={() => onUpdate({ logistics: null })}
+                clearConfirmText="Clear this logistics risk summary?"
+              />
+            )}
           </div>
           <div className="flex-1 text-slate-400">
-            {intel ? (
+            {summary ? (
               <div className="animate-in fade-in duration-500">
-                {renderMarkdown(intel, true)}
+                {intel.logisticsRoute && <p className="text-[10px] text-slate-500 italic mb-4">Route: {intel.logisticsRoute}</p>}
+                {renderMarkdown(summary, true)}
               </div>
             ) : (
               <div className="h-full flex flex-col items-center justify-center opacity-20 text-center py-20 grayscale">
@@ -179,7 +202,13 @@ const SupplyChainConsole: React.FC<Props> = ({ brand, intel, setIntel }) => {
             <h3 className="text-[10px] font-black text-amber-500 uppercase tracking-widest flex items-center gap-1.5">
               <AlertTriangle size={12}/> Live Logistics Radar
             </h3>
-            {monitoring && <span className="text-[9px] font-black text-amber-500 uppercase animate-pulse">Scanning Geofences...</span>}
+            {monitoring ? (
+              <span className="text-[9px] font-black text-amber-500 uppercase animate-pulse">Scanning Geofences...</span>
+            ) : disruptions.length > 0 ? (
+              <button onClick={clearAlerts} title="Clear alerts" className="text-[9px] font-black uppercase text-slate-500 hover:text-red-400 flex items-center gap-1 transition-colors">
+                <Trash2 size={11} /> Clear
+              </button>
+            ) : null}
           </div>
 
           <div className="flex-1 space-y-3">

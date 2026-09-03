@@ -17,8 +17,23 @@ A full-stack AI consulting and logistics workbench for **Shank Strategy Ops LLC*
    - **Route Corridors** — Includes quick-select presets for transpacific marine lanes, European rail networks, and NAFTA highways.
 
 3. **Creative Asset Studio**
-   - **Content Studio** — Generates tone-customized LinkedIn copywriting drafts (Thought Leadership, Technical/Operational, Risk/Mitigation, Visionary).
-   - **Visual Concept Studio** — Generates high-quality branded slide graphics, presentation backgrounds, and logistics mockups using `imagen-3.0-generate-002` with commercial style presets.
+   - **Content Studio** — Generates tone-customized LinkedIn copywriting drafts (Thought Leadership, Technical/Operational, Risk/Mitigation, Visionary). Drafts can be deleted one at a time, cleared, or downloaded together as Markdown.
+   - **Visual Concept Studio** — Generates high-quality branded slide graphics, presentation backgrounds, and logistics mockups using `imagen-3.0-generate-002` with commercial style presets. The last image stays available while you move between sections.
+
+4. **Client Library** (`Clients` in the sidebar)
+   - Save the active client (profile plus every brief, draft, and analysis) to the library, then switch between engagements without losing work. The active client auto-syncs to its library entry as you work.
+   - Start a fresh client from the library or from Settings; delete saved clients you no longer need.
+
+5. **Exports built for client delivery**
+   - Every brief (framework, market, logistics) has a consistent action bar: **Copy**, **.md**, **PDF**, and **Clear**.
+   - PDFs are real text documents (selectable, searchable) with headings, bullets, tables, a confidential footer, and page numbers. See [`lib/pdf.ts`](lib/pdf.ts).
+   - **Export Report** in the header produces the full client report as PDF or Markdown: profile, market intelligence with sources, logistics with live alerts, every framework, and content drafts.
+
+6. **Reset, clear, and backup** (gear icon in the header)
+   - **Reset active workspace** clears the current client without touching the library.
+   - **Clear local cache and sign out** removes every copy stored in the browser.
+   - **Export / Import workspace backup** moves the active client and the whole library between browsers or machines as a `.json` file.
+   - AI failures show actionable messages (sign-in required, bad key, rate limit, proxy offline) instead of raw SDK errors.
 
 ---
 
@@ -29,7 +44,7 @@ A full-stack AI consulting and logistics workbench for **Shank Strategy Ops LLC*
 | **Frontend** | React 19 · Vite · Tailwind CSS v4 · Lucide Icons |
 | **Backend Proxy** | Express 5 — rate-limited reverse proxy injecting the Gemini API key at the edge |
 | **Database** | Supabase (PostgreSQL) with Row Level Security and debounced state sync (1.5 s) |
-| **PDF Export** | Client-side via `html2canvas` + `jsPDF` |
+| **PDF Export** | Client-side text layout via `jsPDF` (`lib/pdf.ts`); no screenshots |
 | **AI Models** | Configured centrally in `config.ts` (see below) |
 
 ### Centralized Model Configuration
@@ -56,27 +71,36 @@ Lumina-Pro/
 ├── index.tsx               # React root render
 ├── index.css               # Global CSS / Tailwind imports
 ├── App.tsx                 # Main app shell, routing, and state management
-├── config.ts               # Centralized AI model configuration
+├── config.ts               # Firm name and centralized AI model configuration
 ├── types.ts                # Shared TypeScript interfaces
 ├── server.js               # Express reverse-proxy server
-├── supabase_schema.sql     # Database DDL for Supabase
+├── supabase_schema.sql     # Database DDL for Supabase (new installs)
+├── supabase_migrations/    # Incremental SQL for existing databases
 ├── run-shank-strategy.bat  # One-click Windows launcher
 │
 ├── components/
 │   ├── Auth.tsx             # Authentication gate (Supabase or offline mode)
 │   ├── Overview.tsx         # Dashboard overview panel
+│   ├── ClientLibrary.tsx    # Save / load / delete client workspaces
+│   ├── SettingsModal.tsx    # API key, backup/restore, reset, clear cache
+│   ├── BriefActions.tsx     # Shared Copy / .md / PDF / Clear action bar
 │   ├── StrategyBoard.tsx    # SWOT / SCOR / PESTEL / DMAIC / BULLWHIP
 │   ├── MarketInsights.tsx   # Market intelligence console
 │   ├── SupplyChainConsole.tsx # Logistics risk & disruption monitor
 │   ├── ContentStudio.tsx    # LinkedIn copywriting generator
 │   ├── VisualStudio.tsx     # Image / slide concept generator
-│   ├── ExportPDF.tsx        # PDF report exporter
+│   ├── ExportPDF.tsx        # Full-report export menu (PDF or Markdown)
 │   └── ErrorBoundary.tsx    # React error boundary wrapper
 │
 ├── lib/
 │   ├── api.ts               # Gemini SDK wrapper & proxy routing logic
 │   ├── supabase.ts          # Supabase client with offline fallback
-│   ├── markdown.tsx         # Shared markdown-to-JSX renderer
+│   ├── persistence.ts       # Local + cloud workspace storage, backups, client library
+│   ├── pdf.ts               # Markdown-to-PDF layout engine (jsPDF)
+│   ├── report.ts            # Full client report sections (PDF and Markdown)
+│   ├── download.ts          # Browser file download helpers
+│   ├── errors.ts            # Friendly messages for AI / proxy failures
+│   ├── markdown.tsx         # Shared markdown-to-JSX renderer (headings, lists, tables)
 │   ├── api.test.ts          # Tests for API client
 │   └── markdown.test.tsx    # Tests for markdown renderer
 │
@@ -126,6 +150,7 @@ If using Supabase for persistence:
 
 1. Open your Supabase project's **SQL Editor**.
 2. Paste and run the contents of [`supabase_schema.sql`](supabase_schema.sql) to create the `brand_profiles` and `global_intel` tables with Row Level Security policies.
+3. **Existing databases:** run [`supabase_migrations/2026-09-03_workspace_meta.sql`](supabase_migrations/2026-09-03_workspace_meta.sql) once. It adds the `workspace_meta` column that stores the client library, research queries, sources, routes, and live alerts. Until it is applied, the app keeps working and stores those items in the browser only (a console warning tells you the migration is missing).
 
 ### 4. Run the Application
 
@@ -222,7 +247,10 @@ export const config = {
 };
 ```
 
-### 2. Adding Custom Strategy Frameworks
+### 2. Changing the PDF layout
+[`lib/pdf.ts`](lib/pdf.ts) turns Markdown into paginated text. Margins, fonts, and colors live at the top of the file; section order for the full report is in [`lib/report.ts`](lib/report.ts). Do not reintroduce `html2canvas`: Tailwind v4 emits `oklch()` colors that it cannot parse, which is what broke the previous screenshot-based export.
+
+### 3. Adding Custom Strategy Frameworks
 If you want to add a new operational framework (e.g. Six Sigma DMAIC, Volatility Bullwhip):
 1. Add the enum values to [`types.ts`](types.ts).
 2. Register the selector logic and prompt templates in [`components/StrategyBoard.tsx`](components/StrategyBoard.tsx) inside the `generateConsultingFramework` method.
@@ -243,3 +271,8 @@ If AI operations fail with `upstream_error` or `Forbidden`:
 - Call `GET http://localhost:3001/health/upstream`. This invokes a cheap Google models check using your key.
 - If it returns `502 upstream_error`, verify the value of `GEMINI_API_KEY` in your `.env.local` file.
 
+### 3. AI features fail in Offline Mode
+When Supabase is configured, the proxy requires a signed-in session. Offline Mode has no session, so open **Settings** (gear icon) and enter a personal Gemini API key, or sign in.
+
+### 4. Something looks stale or stuck
+Open **Settings** and use **Reset active workspace** (keeps the client library) or **Clear local cache and sign out** (removes everything in this browser). Export a backup first if you want to keep the data.

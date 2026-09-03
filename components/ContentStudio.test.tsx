@@ -144,3 +144,19 @@ Automating custom warehouse alerts optimizes flow rates and throughput metrics.
     expect(calls[0]).toContain('Logistical alignment is key');
   });
 });
+
+describe('ContentStudio draft management', () => {
+  const mockBrand = { name: 'Acme Logistics', industry: 'Consulting', description: '', tone: '' };
+
+  it('deletes one draft and clears all after confirmation', () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const setSavedPosts = vi.fn();
+    render(<ContentStudio brand={mockBrand} savedPosts={['First draft', 'Second draft']} setSavedPosts={setSavedPosts} />);
+
+    fireEvent.click(screen.getByLabelText('Delete draft 1'));
+    expect(setSavedPosts).toHaveBeenCalledWith(['Second draft']);
+
+    fireEvent.click(screen.getByTitle('Clear all drafts'));
+    expect(setSavedPosts).toHaveBeenCalledWith([]);
+  });
+});

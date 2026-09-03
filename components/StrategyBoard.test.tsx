@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
 import StrategyBoard from './StrategyBoard';
 import { ai } from '../lib/api';
+import { savePdf } from '../lib/pdf';
 
 vi.mock('../lib/api', () => ({
   ai: {
@@ -12,26 +13,10 @@ vi.mock('../lib/api', () => ({
   }
 }));
 
-// Mock html2canvas and jsPDF to prevent canvas errors in JSDOM environment
-vi.mock('html2canvas', () => ({
-  default: vi.fn().mockResolvedValue({
-    width: 800,
-    height: 600,
-    toDataURL: vi.fn().mockReturnValue('data:image/png;base64,mockImageData')
-  })
-}));
-
-vi.mock('jspdf', () => ({
-  default: vi.fn().mockImplementation(() => ({
-    internal: {
-      pageSize: {
-        getWidth: () => 595,
-        getHeight: () => 842
-      }
-    },
-    addImage: vi.fn(),
-    save: vi.fn()
-  }))
+// The PDF builder is covered by lib/pdf.test.ts; here we only assert it is invoked.
+vi.mock('../lib/pdf', () => ({
+  savePdf: vi.fn(),
+  formatReportDate: () => 'January 1, 2026'
 }));
 
 // Mock clipboard API
@@ -73,11 +58,11 @@ describe('StrategyBoard Component', () => {
 
   it('renders client config and all strategy framework trigger buttons', () => {
     render(
-      <StrategyBoard 
-        brand={mockBrand} 
-        setBrand={mockSetBrand} 
-        history={[]} 
-        onNewEntry={mockOnNewEntry} 
+      <StrategyBoard
+        brand={mockBrand}
+        setBrand={mockSetBrand}
+        history={[]}
+        onNewEntry={mockOnNewEntry}
       />
     );
 
@@ -99,11 +84,11 @@ describe('StrategyBoard Component', () => {
     } as any);
 
     render(
-      <StrategyBoard 
-        brand={mockBrand} 
-        setBrand={mockSetBrand} 
-        history={[]} 
-        onNewEntry={mockOnNewEntry} 
+      <StrategyBoard
+        brand={mockBrand}
+        setBrand={mockSetBrand}
+        history={[]}
+        onNewEntry={mockOnNewEntry}
       />
     );
 
@@ -122,6 +107,26 @@ describe('StrategyBoard Component', () => {
     expect(screen.getByText('Executive Summary')).toBeInTheDocument();
   });
 
+  it('shows a readable error when the AI call fails', async () => {
+    vi.mocked(ai.models.generateContent).mockRejectedValueOnce(Object.assign(new Error('Unauthorized'), { status: 401 }));
+
+    render(
+      <StrategyBoard
+        brand={mockBrand}
+        setBrand={mockSetBrand}
+        history={[]}
+        onNewEntry={mockOnNewEntry}
+      />
+    );
+
+    fireEvent.click(screen.getByText('SWOT'));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Not authorized for the AI proxy/i)).toBeInTheDocument();
+    });
+    expect(mockOnNewEntry).not.toHaveBeenCalled();
+  });
+
   it('renders Action Bar with Copy, Download, and PDF buttons when brief is active', async () => {
     const historyEntry = [{
       type: 'Ansoff Growth Matrix',
@@ -130,11 +135,11 @@ describe('StrategyBoard Component', () => {
     }];
 
     render(
-      <StrategyBoard 
-        brand={mockBrand} 
-        setBrand={mockSetBrand} 
-        history={historyEntry} 
-        onNewEntry={mockOnNewEntry} 
+      <StrategyBoard
+        brand={mockBrand}
+        setBrand={mockSetBrand}
+        history={historyEntry}
+        onNewEntry={mockOnNewEntry}
       />
     );
 
@@ -148,8 +153,46 @@ describe('StrategyBoard Component', () => {
     expect(downloadBtn).toBeInTheDocument();
     expect(pdfBtn).toBeInTheDocument();
 
-    // Click Copy button
     fireEvent.click(copyBtn);
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith(historyEntry[0].content);
+
+    fireEvent.click(pdfBtn);
+    expect(savePdf).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Ansoff Growth Matrix',
+        sections: [expect.objectContaining({ markdown: historyEntry[0].content })]
+      }),
+      'Ansoff_Growth_Matrix_Acme_Supply_Chain.pdf'
+    );
+  });
+
+  it('deletes a single saved framework and clears all with confirmation', () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const onDeleteEntry = vi.fn();
+    const onClearHistory = vi.fn();
+    const history = [
+      { type: 'SWOT', timestamp: new Date().toISOString(), content: 'SWOT body' },
+      { type: 'PESTEL', timestamp: new Date().toISOString(), content: 'PESTEL body' }
+    ];
+
+    render(
+      <StrategyBoard
+        brand={mockBrand}
+        setBrand={mockSetBrand}
+        history={history}
+        onNewEntry={mockOnNewEntry}
+        onDeleteEntry={onDeleteEntry}
+        onClearHistory={onClearHistory}
+      />
+    );
+
+    fireEvent.click(screen.getByLabelText('Delete PESTEL'));
+    expect(onDeleteEntry).toHaveBeenCalledWith(1);
+
+    fireEvent.click(screen.getByTitle('Delete'));
+    expect(onDeleteEntry).toHaveBeenCalledWith(0);
+
+    fireEvent.click(screen.getByTitle('Clear all saved frameworks'));
+    expect(onClearHistory).toHaveBeenCalledTimes(1);
   });
 });

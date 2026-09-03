@@ -3,9 +3,9 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
-const isConfigured = !!(supabaseUrl && supabaseAnonKey);
+export const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey);
 
-if (!isConfigured) {
+if (!isSupabaseConfigured) {
   console.warn("Supabase environment variables are missing. Defaulting to offline local mock client.");
 }
 
@@ -28,4 +28,4 @@ const dummyClient = {
   })
 } as any;
 
-export const supabase = isConfigured ? createClient(supabaseUrl, supabaseAnonKey) : dummyClient;
+export const supabase = isSupabaseConfigured ? createClient(supabaseUrl, supabaseAnonKey) : dummyClient;

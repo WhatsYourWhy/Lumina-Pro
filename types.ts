@@ -1,4 +1,3 @@
-
 export interface BrandProfile {
   name: string;
   industry: string;
@@ -8,6 +7,7 @@ export interface BrandProfile {
 
 export enum AppSection {
   OVERVIEW = 'OVERVIEW',
+  CLIENTS = 'CLIENTS',
   STRATEGY = 'STRATEGY',
   CONTENT = 'CONTENT',
   VISUALS = 'VISUALS',
@@ -32,15 +32,46 @@ export interface StrategicEntry {
   content: string;
 }
 
+export interface LogisticsDisruption {
+  title: string;
+  summary: string;
+  severity: 'high' | 'medium' | 'low';
+}
+
+/**
+ * Everything the workbench knows about the active client.
+ * The first four fields map to dedicated Supabase columns; the optional
+ * fields are stored together in the `workspace_meta` jsonb column so that
+ * section state (queries, sources, live alerts) survives navigation and reloads.
+ */
 export interface GlobalIntelState {
   strategyHistory: StrategicEntry[];
   marketAnalysis: string | null;
   contentDrafts: string[];
   logistics: string | null;
+  marketQuery?: string;
+  marketSources?: GroundingSource[];
+  marketDrilldowns?: string[];
+  logisticsRoute?: string;
+  logisticsDisruptions?: LogisticsDisruption[];
 }
 
-export interface LogisticsDisruption {
-  title: string;
-  summary: string;
-  severity: 'high' | 'medium' | 'low';
+/** A saved client: a frozen copy of the brand profile and its intel. */
+export interface ClientSnapshot {
+  id: string;
+  name: string;
+  savedAt: string;
+  brand: BrandProfile;
+  intel: GlobalIntelState;
+}
+
+export type StorageMode = 'cloud' | 'local';
+
+/** Shape of a workspace backup file (Settings > Export backup). */
+export interface WorkspaceBackup {
+  version: 1;
+  exportedAt: string;
+  brand: BrandProfile;
+  intel: GlobalIntelState;
+  clients: ClientSnapshot[];
 }

@@ -1,133 +1,78 @@
-import React, { useRef, useState } from 'react';
-import { Download, Loader2 } from 'lucide-react';
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
-import { BrandProfile, GlobalIntelState } from '../types';
-import { renderMarkdown } from '../lib/markdown';
+import React, { useEffect, useRef, useState } from 'react';
+import { ChevronDown, Download, FileDown, FileText, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { BrandProfile, GlobalIntelState } from '../types';
+import { savePdf } from '../lib/pdf';
+import { buildReportMarkdown, buildReportSpec, reportFilename } from '../lib/report';
+import { downloadMarkdown } from '../lib/download';
 
 interface ExportProps {
   brand: BrandProfile;
   intel: GlobalIntelState;
 }
 
-const formatTimestamp = (ts: string) => {
-  const date = new Date(ts);
-  if (!isNaN(date.getTime())) {
-    return date.toLocaleString();
-  }
-  return ts;
-};
-
+/** Header control that exports the full client report as PDF or Markdown. */
 const ExportPDF: React.FC<ExportProps> = ({ brand, intel }) => {
   const [isExporting, setIsExporting] = useState(false);
-  const printRef = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
-  const handleExport = async () => {
-    if (!printRef.current) return;
+  useEffect(() => {
+    if (!open) return;
+    const close = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [open]);
+
+  const exportPdf = () => {
+    setOpen(false);
     setIsExporting(true);
-    
     try {
-      printRef.current.style.display = 'block';
-      
-      const canvas = await html2canvas(printRef.current, { 
-        scale: 2,
-        useCORS: true,
-        logging: false
-      });
-      const canvasWidth = canvas.width;
-      const canvasHeight = canvas.height;
-      // Calculate standard height for a page in canvas pixels based on A4 aspect ratio (~1.414)
-      const pageHeightInCanvasPixels = Math.floor(canvasWidth * 1.414);
-
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'px',
-        format: 'a4'
-      });
-
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const scale = pdfWidth / canvasWidth;
-
-      let heightLeft = canvasHeight;
-      let position = 0;
-      let pageNum = 0;
-
-      while (heightLeft > 0) {
-        const pageCanvas = document.createElement('canvas');
-        pageCanvas.width = canvasWidth;
-        const currentSliceHeight = Math.min(pageHeightInCanvasPixels, heightLeft);
-        pageCanvas.height = currentSliceHeight;
-
-        const ctx = pageCanvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(
-            canvas,
-            0, position, canvasWidth, currentSliceHeight,
-            0, 0, canvasWidth, currentSliceHeight
-          );
-        }
-
-        const pageImgData = pageCanvas.toDataURL('image/png');
-
-        if (pageNum > 0) {
-          pdf.addPage();
-        }
-
-        pdf.addImage(pageImgData, 'PNG', 0, 0, pdfWidth, currentSliceHeight * scale);
-
-        position += pageHeightInCanvasPixels;
-        heightLeft -= pageHeightInCanvasPixels;
-        pageNum++;
-      }
-
-      pdf.save(`${brand.name || 'Brand'}_Strategy_Report.pdf`);
+      const filename = reportFilename(brand, 'pdf');
+      savePdf(buildReportSpec(brand, intel), filename);
+      toast.success(`Exported ${filename}`);
     } catch (error) {
       console.error('Failed to export PDF', error);
       toast.error('Failed to export PDF. Please try again.');
     } finally {
-      if (printRef.current) printRef.current.style.display = 'none';
       setIsExporting(false);
     }
   };
 
+  const exportMarkdown = () => {
+    setOpen(false);
+    const filename = reportFilename(brand, 'md');
+    downloadMarkdown(filename, buildReportMarkdown(brand, intel));
+    toast.success(`Exported ${filename}`);
+  };
+
   return (
-    <>
-      <button 
-        onClick={handleExport}
+    <div className="relative" ref={menuRef}>
+      <button
+        onClick={() => setOpen(o => !o)}
         disabled={isExporting}
         className="text-xs text-indigo-400 hover:text-white px-3 py-1.5 rounded-lg border border-indigo-500/30 hover:bg-indigo-500/20 flex items-center gap-2 transition-colors disabled:opacity-50"
+        title="Export the full client report"
       >
         {isExporting ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
-        Export PDF
+        Export Report
+        <ChevronDown size={12} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
-
-      <div 
-        ref={printRef} 
-        style={{ display: 'none', width: '800px', backgroundColor: '#ffffff', color: '#000000', padding: '60px', fontFamily: 'sans-serif' }}
-        className="absolute top-0 left-0 -z-50"
-      >
-        <h1 style={{ fontSize: '36px', fontWeight: 'bold', margin: '0 0 8px 0', color: '#0f172a' }}>{brand.name || 'Brand'} Strategy Report</h1>
-        <p style={{ color: '#64748b', fontSize: '16px', margin: '0 0 40px 0' }}>{brand.industry} • {brand.tone}</p>
-        
-        <h2 style={{ fontSize: '24px', fontWeight: 'bold', margin: '32px 0 16px 0', borderBottom: '2px solid #e2e8f0', paddingBottom: '8px', color: '#1e293b' }}>Market Analysis</h2>
-        <div style={{ fontSize: '14px', lineHeight: '1.8', color: '#334155' }}>
-          {intel.marketAnalysis ? renderMarkdown(intel.marketAnalysis, true, 'light') : 'No market analysis generated yet.'}
+      {open && (
+        <div className="absolute right-0 mt-2 w-56 glass bg-[#0b1120]/95 border border-slate-800 rounded-xl shadow-2xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-150">
+          <button onClick={exportPdf} className="w-full flex items-center gap-3 px-4 py-3 text-xs text-slate-200 hover:bg-slate-800 transition-colors text-left">
+            <FileDown size={14} className="text-indigo-400" />
+            <span>Full report (PDF)<span className="block text-[9px] text-slate-500">Profile, market, logistics, frameworks, drafts</span></span>
+          </button>
+          <button onClick={exportMarkdown} className="w-full flex items-center gap-3 px-4 py-3 text-xs text-slate-200 hover:bg-slate-800 transition-colors text-left border-t border-slate-800">
+            <FileText size={14} className="text-indigo-400" />
+            <span>Full report (Markdown)<span className="block text-[9px] text-slate-500">Editable .md for Word, Notion, or Docs</span></span>
+          </button>
         </div>
-
-        <h2 style={{ fontSize: '24px', fontWeight: 'bold', margin: '40px 0 16px 0', borderBottom: '2px solid #e2e8f0', paddingBottom: '8px', color: '#1e293b' }}>Strategic History</h2>
-        {(intel?.strategyHistory || []).length === 0 && <p style={{ fontSize: '14px', color: '#64748b' }}>No strategic history found.</p>}
-        {(intel?.strategyHistory || []).map((entry: any, i: number) => (
-          <div key={i} style={{ marginTop: '24px', padding: '20px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-               <h3 style={{ fontWeight: 'bold', fontSize: '16px', textTransform: 'uppercase', color: '#6366f1', margin: 0 }}>{entry.type}</h3>
-               <span style={{ fontSize: '12px', color: '#94a3b8' }}>{formatTimestamp(entry.timestamp)}</span>
-            </div>
-            <div style={{ fontSize: '14px', lineHeight: '1.7', color: '#334155' }}>{renderMarkdown(entry.content, false, 'light')}</div>
-          </div>
-        ))}
-      </div>
-    </>
+      )}
+    </div>
   );
 };
 

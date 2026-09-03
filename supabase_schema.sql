@@ -30,7 +30,9 @@ create table public.global_intel (
   strategy_history jsonb default '[]'::jsonb,
   market_analysis text,
   content_drafts text[] default '{}'::text[],
-  logistics text
+  logistics text,
+  -- Client library, active client id, and per-section state (queries, sources, alerts).
+  workspace_meta jsonb default '{}'::jsonb
 );
 
 -- Set up Row Level Security (RLS) for global_intel

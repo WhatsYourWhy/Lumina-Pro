@@ -1,32 +1,46 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { Type } from "@google/genai";
 import { ai } from '../lib/api';
 import { config } from '../config';
 import { renderMarkdown } from '../lib/markdown';
-import { BrandProfile } from '../types';
+import { BrandProfile, StrategicEntry } from '../types';
 import { parseCleanJson } from '../lib/json';
+import { describeAiError } from '../lib/errors';
+import BriefActions from './BriefActions';
 import toast from 'react-hot-toast';
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
-import { 
-  Zap, 
-  Target, 
-  Compass, 
-  Loader2, 
+import {
+  Zap,
+  Target,
+  Compass,
+  Loader2,
   History,
   FileText,
-  Copy,
-  Check,
-  Download,
-  FileDown
+  Trash2,
+  X
 } from 'lucide-react';
 
 interface Props {
   brand: BrandProfile;
   setBrand: (b: BrandProfile) => void;
-  history: { type: string; timestamp: string; content: string }[];
-  onNewEntry: (entry: { type: string; timestamp: string; content: string }) => void;
+  history: StrategicEntry[];
+  onNewEntry: (entry: StrategicEntry) => void;
+  onDeleteEntry?: (index: number) => void;
+  onClearHistory?: () => void;
 }
+
+type FrameworkType = 'SCOR' | 'SWOT' | 'PESTEL' | 'LENS' | 'DMAIC' | 'BULLWHIP' | 'PORTER' | 'MCKINSEY_7S' | 'ANSOFF' | 'OKR';
+
+const FRAMEWORK_LABELS: Record<Exclude<FrameworkType, 'LENS'>, string> = {
+  SWOT: 'SWOT',
+  SCOR: 'SCOR',
+  PESTEL: 'PESTEL',
+  DMAIC: 'DMAIC',
+  BULLWHIP: 'BULLWHIP',
+  PORTER: "Porter's 5 Forces",
+  MCKINSEY_7S: 'McKinsey 7S Framework',
+  ANSOFF: 'Ansoff Growth Matrix',
+  OKR: 'OKR Strategy Roadmap'
+};
 
 const formatTimestamp = (ts: string) => {
   const date = new Date(ts);
@@ -36,7 +50,12 @@ const formatTimestamp = (ts: string) => {
   return ts;
 };
 
-const StrategyBoard: React.FC<Props> = ({ brand, setBrand, history, onNewEntry }) => {
+const formatFullTimestamp = (ts: string) => {
+  const date = new Date(ts);
+  return isNaN(date.getTime()) ? ts : date.toLocaleString();
+};
+
+const StrategyBoard: React.FC<Props> = ({ brand, setBrand, history, onNewEntry, onDeleteEntry, onClearHistory }) => {
   const historyList = history || [];
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -45,10 +64,7 @@ const StrategyBoard: React.FC<Props> = ({ brand, setBrand, history, onNewEntry }
   const [displayIndex, setDisplayIndex] = useState(0);
   const [currentAnalysis, setCurrentAnalysis] = useState<string | null>(null);
   const [tempType, setTempType] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
-  const [exportingPdf, setExportingPdf] = useState(false);
-
-  const briefRef = useRef<HTMLDivElement>(null);
+  const [tempTimestamp, setTempTimestamp] = useState<string | null>(null);
 
   const discoverBrand = async () => {
     if (!brand.name) return;
@@ -64,7 +80,7 @@ const StrategyBoard: React.FC<Props> = ({ brand, setBrand, history, onNewEntry }
       const extractResponse = await ai.models.generateContent({
         model: config.models.defaultFlash,
         contents: `Extract business profile data from this text: "${searchResponse.text}"`,
-        config: { 
+        config: {
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
@@ -89,28 +105,23 @@ const StrategyBoard: React.FC<Props> = ({ brand, setBrand, history, onNewEntry }
         tone: data.tone
       });
       toast.success("Brand profile discovered!");
-    } catch (e) { 
+    } catch (e) {
       console.error("Brand discovery failed:", e);
-      setError("Discovery phase failed. Please check company name or enter details manually.");
-      toast.error("Discovery phase failed.");
-    } finally { 
-      setSyncing(false); 
+      const message = describeAiError(e);
+      setError(`Discovery failed: ${message}`);
+      toast.error(message);
+    } finally {
+      setSyncing(false);
     }
   };
 
-  const generateConsultingFramework = async (type: 'SCOR' | 'SWOT' | 'PESTEL' | 'LENS' | 'DMAIC' | 'BULLWHIP' | 'PORTER' | 'MCKINSEY_7S' | 'ANSOFF' | 'OKR') => {
+  const generateConsultingFramework = async (type: FrameworkType) => {
     if (!brand.name) return;
     setLoading(true);
     setError(null);
     setCurrentAnalysis(null);
-    
-    let typeLabel = type as string;
-    if (type === 'LENS') typeLabel = `LENS: ${activeLens.toUpperCase()}`;
-    else if (type === 'PORTER') typeLabel = "Porter's 5 Forces";
-    else if (type === 'MCKINSEY_7S') typeLabel = "McKinsey 7S Framework";
-    else if (type === 'ANSOFF') typeLabel = "Ansoff Growth Matrix";
-    else if (type === 'OKR') typeLabel = "OKR Strategy Roadmap";
-    
+
+    const typeLabel = type === 'LENS' ? `LENS: ${activeLens.toUpperCase()}` : FRAMEWORK_LABELS[type];
     setTempType(typeLabel);
 
     try {
@@ -133,6 +144,9 @@ const StrategyBoard: React.FC<Props> = ({ brand, setBrand, history, onNewEntry }
         prompt = `Generate a detailed ${type} framework for ${brand.name} within the ${brand.industry} sector. Be specific, data-driven, actionable, and critical.`;
       }
 
+      if (brand.description) {
+        prompt += ` Business context: ${brand.description}`;
+      }
       prompt += ` Structure the response strictly with clear markdown headers: ## Executive Summary, ## Strategic Analysis & Key Takeaways, ## Framework Breakdown, and ## Actionable Implementation Plan.`;
 
       const response = await ai.models.generateContent({
@@ -143,114 +157,65 @@ const StrategyBoard: React.FC<Props> = ({ brand, setBrand, history, onNewEntry }
           systemInstruction: "You are a Senior Operations Strategy Partner. Provide high-density, professional business consulting briefs with structured bullet points, clear headings, bold metrics, and executive tone."
         }
       });
-      
+
       const content = response.text;
       if (!content) {
         throw new Error("No strategic analysis content returned.");
       }
+      const timestamp = new Date().toISOString();
       setCurrentAnalysis(content);
-      
-      // Auto-save to history
-      onNewEntry({
-        type: typeLabel,
-        timestamp: new Date().toISOString(),
-        content: content
-      });
+      setTempTimestamp(timestamp);
+
+      onNewEntry({ type: typeLabel, timestamp, content });
       setDisplayIndex(0);
-    } catch (e: any) { 
+    } catch (e: any) {
       console.error("Strategic synthesis failed:", e);
-      setError("Strategic synthesis interrupted. Check connectivity.");
-      toast.error("Strategic synthesis interrupted.");
-    } finally { 
-      setLoading(false); 
-    }
-  };
-
-  const activeContent = currentAnalysis || historyList[displayIndex]?.content;
-  const activeTitle = currentAnalysis ? tempType : historyList[displayIndex]?.type;
-
-  const handleCopyMarkdown = () => {
-    if (!activeContent) return;
-    navigator.clipboard.writeText(activeContent);
-    setCopied(true);
-    toast.success("Brief copied to clipboard!");
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleDownloadMarkdown = () => {
-    if (!activeContent) return;
-    const filename = `${(activeTitle || 'Strategic_Brief').replace(/[^a-zA-Z0-9_-]/g, '_')}_${(brand.name || 'Brand').replace(/[^a-zA-Z0-9_-]/g, '_')}.md`;
-    const blob = new Blob([activeContent], { type: 'text/markdown;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', filename);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    toast.success(`Downloaded ${filename}`);
-  };
-
-  const handleExportPdf = async () => {
-    if (!briefRef.current || !activeContent) return;
-    setExportingPdf(true);
-    try {
-      const canvas = await html2canvas(briefRef.current, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#0f172a'
-      });
-      const canvasWidth = canvas.width;
-      const canvasHeight = canvas.height;
-      const pageHeightInCanvasPixels = Math.floor(canvasWidth * 1.414);
-
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: 'a4' });
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const scale = pdfWidth / canvasWidth;
-
-      let heightLeft = canvasHeight;
-      let position = 0;
-      let pageNum = 0;
-
-      while (heightLeft > 0) {
-        const pageCanvas = document.createElement('canvas');
-        pageCanvas.width = canvasWidth;
-        const currentSliceHeight = Math.min(pageHeightInCanvasPixels, heightLeft);
-        pageCanvas.height = currentSliceHeight;
-
-        const ctx = pageCanvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(
-            canvas,
-            0, position, canvasWidth, currentSliceHeight,
-            0, 0, canvasWidth, currentSliceHeight
-          );
-        }
-
-        const pageImgData = pageCanvas.toDataURL('image/png');
-
-        if (pageNum > 0) {
-          pdf.addPage();
-        }
-
-        pdf.addImage(pageImgData, 'PNG', 0, 0, pdfWidth, currentSliceHeight * scale);
-
-        position += pageHeightInCanvasPixels;
-        heightLeft -= pageHeightInCanvasPixels;
-        pageNum++;
-      }
-
-      const filename = `${(activeTitle || 'Strategic_Brief').replace(/[^a-zA-Z0-9_-]/g, '_')}_${(brand.name || 'Brand').replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`;
-      pdf.save(filename);
-      toast.success(`Exported PDF: ${filename}`);
-    } catch (err) {
-      console.error("PDF export failed:", err);
-      toast.error("Failed to export PDF.");
+      const message = describeAiError(e);
+      setError(`Strategic synthesis interrupted: ${message}`);
+      toast.error(message);
     } finally {
-      setExportingPdf(false);
+      setLoading(false);
     }
   };
+
+  const activeEntry = historyList[displayIndex];
+  const activeContent = currentAnalysis || activeEntry?.content || null;
+  const activeTitle = currentAnalysis ? tempType : activeEntry?.type;
+  const activeTimestamp = currentAnalysis ? tempTimestamp : activeEntry?.timestamp;
+
+  const selectEntry = (index: number) => {
+    setDisplayIndex(index);
+    setCurrentAnalysis(null);
+  };
+
+  const removeEntry = (index: number) => {
+    if (!onDeleteEntry) return;
+    onDeleteEntry(index);
+    // The freshly generated brief lives at index 0 of history; drop the live copy too.
+    if (index === 0 && currentAnalysis) setCurrentAnalysis(null);
+    if (displayIndex >= index && displayIndex > 0) setDisplayIndex(displayIndex - 1);
+  };
+
+  const clearActiveBrief = () => {
+    if (currentAnalysis) {
+      setCurrentAnalysis(null);
+      onDeleteEntry?.(0);
+      setDisplayIndex(0);
+      return;
+    }
+    removeEntry(displayIndex);
+  };
+
+  const clearAll = () => {
+    if (!onClearHistory) return;
+    if (!window.confirm(`Delete all ${historyList.length} saved frameworks for ${brand.name || 'this client'}? This cannot be undone.`)) return;
+    onClearHistory();
+    setCurrentAnalysis(null);
+    setDisplayIndex(0);
+    toast.success('Framework history cleared.');
+  };
+
+  const frameworkButton = 'py-2.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white rounded-lg text-[10px] font-bold transition-colors';
 
   return (
     <div className="space-y-6 lg:space-y-8 animate-in fade-in pb-20">
@@ -260,15 +225,16 @@ const StrategyBoard: React.FC<Props> = ({ brand, setBrand, history, onNewEntry }
             <h2 className="text-lg font-bold flex items-center gap-2 text-indigo-400"><Target size={20}/> Client Config</h2>
             <div className="space-y-4">
               <div className="flex gap-2">
-                <input 
-                  value={brand.name} 
-                  onChange={(e) => setBrand({ ...brand, name: e.target.value })} 
-                  placeholder="Client Company Name" 
-                  className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 transition-colors" 
+                <input
+                  value={brand.name}
+                  onChange={(e) => setBrand({ ...brand, name: e.target.value })}
+                  placeholder="Client Company Name"
+                  className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 transition-colors"
                 />
-                <button 
-                  onClick={discoverBrand} 
+                <button
+                  onClick={discoverBrand}
                   disabled={syncing || !brand.name}
+                  title="Research this company on the web and fill in the profile"
                   className="px-4 bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all"
                 >
                   {syncing ? <Loader2 className="animate-spin" size={16}/> : "Sync"}
@@ -277,46 +243,53 @@ const StrategyBoard: React.FC<Props> = ({ brand, setBrand, history, onNewEntry }
               <div className="space-y-3">
                 <input value={brand.industry} onChange={(e) => setBrand({ ...brand, industry: e.target.value })} placeholder="Industry" className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs" />
                 <textarea value={brand.description} onChange={(e) => setBrand({ ...brand, description: e.target.value })} placeholder="Business Summary..." className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs h-20 resize-none" />
+                <input value={brand.tone} onChange={(e) => setBrand({ ...brand, tone: e.target.value })} placeholder="Brand voice (e.g. Executive, Direct)" className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs" />
               </div>
+              {error && (
+                <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-[10px] text-red-400 flex items-start justify-between gap-2">
+                  <span>{error}</span>
+                  <button onClick={() => setError(null)} className="shrink-0 hover:text-white" title="Dismiss"><X size={12} /></button>
+                </div>
+              )}
             </div>
-            
+
             <div className="pt-4 border-t border-slate-800 space-y-4">
               <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Operational Lenses</p>
               <div className="grid grid-cols-2 gap-2">
                 {['efficiency', 'resilience', 'esg', 'growth'].map((l) => (
-                  <button 
-                    key={l} 
-                    onClick={() => setActiveLens(l as any)} 
+                  <button
+                    key={l}
+                    onClick={() => setActiveLens(l as any)}
                     className={`py-2 px-1 rounded-lg text-[10px] font-black uppercase border transition-all ${activeLens === l ? 'bg-indigo-500 border-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'bg-slate-900 border-slate-800 text-slate-500 hover:border-slate-600'}`}
                   >
                     {l}
                   </button>
                 ))}
               </div>
-              <button 
-                onClick={() => generateConsultingFramework('LENS')} 
-                disabled={loading || !brand.name} 
-                className="w-full py-3 bg-white text-slate-950 rounded-xl text-xs font-black shadow-xl hover:bg-slate-200 transition-all active:scale-[0.98]"
+              <button
+                onClick={() => generateConsultingFramework('LENS')}
+                disabled={loading || !brand.name}
+                className="w-full py-3 bg-white text-slate-950 rounded-xl text-xs font-black shadow-xl hover:bg-slate-200 disabled:opacity-50 transition-all active:scale-[0.98]"
               >
                 Run Lens Analysis
               </button>
-              
+
               <div className="pt-2 space-y-2">
                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Strategy Frameworks</p>
                 <div className="grid grid-cols-2 gap-2">
-                  <button disabled={loading || !brand.name} onClick={() => generateConsultingFramework('SWOT')} className="py-2.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white rounded-lg text-[10px] font-bold transition-colors">SWOT</button>
-                  <button disabled={loading || !brand.name} onClick={() => generateConsultingFramework('SCOR')} className="py-2.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white rounded-lg text-[10px] font-bold transition-colors">SCOR (Logistics)</button>
-                  <button disabled={loading || !brand.name} onClick={() => generateConsultingFramework('PESTEL')} className="py-2.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white rounded-lg text-[10px] font-bold transition-colors">PESTEL</button>
-                  <button disabled={loading || !brand.name} onClick={() => generateConsultingFramework('DMAIC')} className="py-2.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white rounded-lg text-[10px] font-bold transition-colors">DMAIC</button>
-                  <button disabled={loading || !brand.name} onClick={() => generateConsultingFramework('PORTER')} className="py-2.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white rounded-lg text-[10px] font-bold transition-colors">Porter's 5 Forces</button>
-                  <button disabled={loading || !brand.name} onClick={() => generateConsultingFramework('MCKINSEY_7S')} className="py-2.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white rounded-lg text-[10px] font-bold transition-colors">McKinsey 7S</button>
-                  <button disabled={loading || !brand.name} onClick={() => generateConsultingFramework('ANSOFF')} className="py-2.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white rounded-lg text-[10px] font-bold transition-colors">Ansoff Matrix</button>
-                  <button disabled={loading || !brand.name} onClick={() => generateConsultingFramework('OKR')} className="py-2.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white rounded-lg text-[10px] font-bold transition-colors">OKR Roadmap</button>
+                  <button disabled={loading || !brand.name} onClick={() => generateConsultingFramework('SWOT')} className={frameworkButton}>SWOT</button>
+                  <button disabled={loading || !brand.name} onClick={() => generateConsultingFramework('SCOR')} className={frameworkButton}>SCOR (Logistics)</button>
+                  <button disabled={loading || !brand.name} onClick={() => generateConsultingFramework('PESTEL')} className={frameworkButton}>PESTEL</button>
+                  <button disabled={loading || !brand.name} onClick={() => generateConsultingFramework('DMAIC')} className={frameworkButton}>DMAIC</button>
+                  <button disabled={loading || !brand.name} onClick={() => generateConsultingFramework('PORTER')} className={frameworkButton}>Porter's 5 Forces</button>
+                  <button disabled={loading || !brand.name} onClick={() => generateConsultingFramework('MCKINSEY_7S')} className={frameworkButton}>McKinsey 7S</button>
+                  <button disabled={loading || !brand.name} onClick={() => generateConsultingFramework('ANSOFF')} className={frameworkButton}>Ansoff Matrix</button>
+                  <button disabled={loading || !brand.name} onClick={() => generateConsultingFramework('OKR')} className={frameworkButton}>OKR Roadmap</button>
                 </div>
-                <button 
-                  onClick={() => generateConsultingFramework('BULLWHIP')} 
+                <button
+                  onClick={() => generateConsultingFramework('BULLWHIP')}
                   disabled={loading || !brand.name}
-                  className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white rounded-lg text-[10px] font-bold transition-colors mt-2"
+                  className={`w-full ${frameworkButton} mt-2`}
                 >
                   Bullwhip Effect Risk
                 </button>
@@ -325,19 +298,40 @@ const StrategyBoard: React.FC<Props> = ({ brand, setBrand, history, onNewEntry }
           </div>
 
           <div className="glass p-5 rounded-2xl space-y-4 border-slate-800/50">
-            <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2"><History size={14}/> Saved Logic</h3>
-            <div className="space-y-1 max-h-48 overflow-y-auto pr-1 scrollbar-hide">
+            <div className="flex items-center justify-between">
+              <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2"><History size={14}/> Saved Logic ({historyList.length})</h3>
+              {historyList.length > 0 && onClearHistory && (
+                <button onClick={clearAll} title="Clear all saved frameworks" className="text-[9px] font-black uppercase text-slate-500 hover:text-red-400 flex items-center gap-1 transition-colors">
+                  <Trash2 size={11} /> Clear all
+                </button>
+              )}
+            </div>
+            <div className="space-y-1 max-h-64 overflow-y-auto pr-1 scrollbar-hide">
               {historyList.length > 0 ? (
-                historyList.map((h, i) => (
-                  <button 
-                    key={i} 
-                    onClick={() => { setDisplayIndex(i); setCurrentAnalysis(null); }}
-                    className={`w-full text-left p-3 rounded-xl text-xs flex justify-between items-center transition-all ${(!currentAnalysis && displayIndex === i) ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/30' : 'hover:bg-slate-800 text-slate-500'}`}
-                  >
-                    <span className="truncate pr-2 font-medium">{h.type}</span>
-                    <span className="opacity-40 text-[9px] shrink-0">{formatTimestamp(h.timestamp)}</span>
-                  </button>
-                ))
+                historyList.map((h, i) => {
+                  const isSelected = !currentAnalysis && displayIndex === i;
+                  return (
+                    <div key={`${h.timestamp}-${i}`} className={`w-full rounded-xl text-xs flex items-center transition-all ${isSelected ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/30' : 'hover:bg-slate-800 text-slate-500'}`}>
+                      <button
+                        onClick={() => selectEntry(i)}
+                        className="flex-1 text-left p-3 flex justify-between items-center min-w-0"
+                      >
+                        <span className="truncate pr-2 font-medium">{h.type}</span>
+                        <span className="opacity-40 text-[9px] shrink-0">{formatTimestamp(h.timestamp)}</span>
+                      </button>
+                      {onDeleteEntry && (
+                        <button
+                          onClick={() => removeEntry(i)}
+                          title={`Delete ${h.type}`}
+                          aria-label={`Delete ${h.type}`}
+                          className="p-2 mr-1 rounded-lg text-slate-600 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                        >
+                          <X size={12} />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })
               ) : (
                 <div className="py-8 text-center text-[10px] text-slate-600 font-bold uppercase tracking-widest italic">No frameworks generated</div>
               )}
@@ -359,40 +353,22 @@ const StrategyBoard: React.FC<Props> = ({ brand, setBrand, history, onNewEntry }
               </div>
               <div className="flex items-center gap-3">
                 {loading && <div className="px-3 py-1 bg-indigo-500/10 border border-indigo-500/20 rounded-full text-[10px] font-black text-indigo-400 uppercase animate-pulse">Consulting AI...</div>}
-                
-                {activeContent && !loading && (
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={handleCopyMarkdown}
-                      title="Copy Markdown to Clipboard"
-                      className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border border-slate-700"
-                    >
-                      {copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
-                      <span className="hidden sm:inline">{copied ? 'Copied' : 'Copy'}</span>
-                    </button>
-                    <button
-                      onClick={handleDownloadMarkdown}
-                      title="Download Markdown (.md)"
-                      className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border border-slate-700"
-                    >
-                      <Download size={14} />
-                      <span className="hidden sm:inline">.md</span>
-                    </button>
-                    <button
-                      onClick={handleExportPdf}
-                      disabled={exportingPdf}
-                      title="Export Brief as PDF"
-                      className="p-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50 shadow-md shadow-indigo-600/20"
-                    >
-                      {exportingPdf ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />}
-                      <span className="hidden sm:inline">PDF</span>
-                    </button>
-                  </div>
+
+                {!loading && (
+                  <BriefActions
+                    content={activeContent}
+                    title={activeTitle || 'Strategic Brief'}
+                    brand={brand}
+                    meta={activeTimestamp ? `Generated ${formatFullTimestamp(activeTimestamp)} · Model ${config.models.defaultPro}` : undefined}
+                    onClear={onDeleteEntry ? clearActiveBrief : undefined}
+                    clearLabel="Delete"
+                    clearConfirmText="Delete this brief from the saved history? This cannot be undone."
+                  />
                 )}
               </div>
             </div>
-            
-            <div ref={briefRef} className="flex-1 overflow-y-auto p-8 text-slate-300 text-sm selection:bg-indigo-500/30">
+
+            <div className="flex-1 overflow-y-auto p-8 text-slate-300 text-sm selection:bg-indigo-500/30">
               {loading ? (
                 <div className="h-full flex flex-col items-center justify-center gap-6 py-20 text-center">
                   <div className="relative">
@@ -401,7 +377,7 @@ const StrategyBoard: React.FC<Props> = ({ brand, setBrand, history, onNewEntry }
                   </div>
                   <div className="space-y-2">
                     <p className="text-xs font-black uppercase tracking-[0.2em] text-indigo-400">Synthesizing Executive Logic</p>
-                    <p className="text-[11px] text-slate-500 max-w-xs font-medium">Cross-referencing brand tone with industry benchmarks and competitive frameworks using Gemini 3.1 Pro...</p>
+                    <p className="text-[11px] text-slate-500 max-w-xs font-medium">Cross-referencing brand tone with industry benchmarks and competitive frameworks using {config.models.defaultPro}...</p>
                   </div>
                 </div>
               ) : activeContent ? (
@@ -418,11 +394,11 @@ const StrategyBoard: React.FC<Props> = ({ brand, setBrand, history, onNewEntry }
                 </div>
               )}
             </div>
-            
+
             {activeContent && !loading && (
                <div className="p-4 border-t border-slate-800 bg-slate-900/30 flex justify-between items-center text-[10px] text-slate-500 font-bold px-8">
-                  <span>Model: Gemini 3.1 Pro</span>
-                  <p>Briefcase Sync: Operational</p>
+                  <span>Model: {config.models.defaultPro}</span>
+                  <span>{activeTimestamp ? formatFullTimestamp(activeTimestamp) : ''}</span>
                </div>
             )}
           </div>

@@ -1,4 +1,8 @@
 export const config = {
+  firm: {
+    name: 'Shank Strategy Ops LLC',
+    shortName: 'Shank Strategy'
+  },
   models: {
     defaultPro: 'gemini-3.1-pro-preview',
     defaultFlash: 'gemini-3.6-flash',
