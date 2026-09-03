@@ -63,6 +63,14 @@ describe('parseInlineRuns', () => {
     ]);
   });
 
+  it('strips nested HTML fragments completely', () => {
+    const runs = parseInlineRuns('safe <scr<script>ipt>alert(1)</script> text');
+    const text = runs.map(r => r.text).join('');
+    expect(text).not.toMatch(/<[^>]*>/);
+    expect(text).not.toMatch(/<script/i);
+    expect(text).toContain('alert(1)');
+  });
+
   it('leaves math-style asterisks alone', () => {
     expect(parseInlineRuns('5 * 3 = 15')).toEqual([{ text: '5 * 3 = 15', bold: false, italic: false }]);
   });

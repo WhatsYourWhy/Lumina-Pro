@@ -171,13 +171,25 @@ export const sanitizeForPdf = (text: string): string => {
   return out.replace(/ {2,}/g, ' ');
 };
 
+/** Removes HTML-like tags, repeating until nothing changes so nested fragments cannot survive. */
+const stripTags = (text: string): string => {
+  let current = text;
+  let previous: string;
+  do {
+    previous = current;
+    current = current.replace(/<[^>]*>/g, '');
+  } while (current !== previous);
+  return current;
+};
+
 const stripInlineNoise = (text: string): string =>
-  text
-    .replace(/`([^`]*)`/g, '$1')
-    .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1')
-    .replace(/<br\s*\/?>/gi, ' ')
-    .replace(/<[^>]+>/g, '');
+  stripTags(
+    text
+      .replace(/`([^`]*)`/g, '$1')
+      .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1')
+      .replace(/<br\s*\/?>/gi, ' ')
+  );
 
 /** Splits inline markdown into styled runs (bold via ** and italic via *). */
 export const parseInlineRuns = (text: string): InlineRun[] => {
