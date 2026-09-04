@@ -5,6 +5,10 @@ on:
   push:
     branches: [main]
 
+# Least privilege: the job only needs to read the repository.
+permissions:
+  contents: read
+
 jobs:
   verify:
     name: Typecheck, test, build
