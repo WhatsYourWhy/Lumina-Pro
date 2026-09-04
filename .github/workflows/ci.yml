@@ -28,6 +28,8 @@ jobs:
         run: npx vitest run
         env:
           NODE_ENV: test
+          # The proxy tests expect a configured upstream key; no real calls are made.
+          GEMINI_API_KEY: ci-placeholder-key
 
       - name: Production build
         run: npx vite build
