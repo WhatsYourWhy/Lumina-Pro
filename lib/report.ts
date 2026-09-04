@@ -2,6 +2,10 @@ import { BrandProfile, GlobalIntelState } from '../types';
 import { config } from '../config';
 import { PdfDocumentSpec, PdfSection, formatReportDate } from './pdf';
 import { safeFilename } from './download';
+import { GeneratedAsset } from './assets';
+
+/** How many generated images the full report embeds (newest first). */
+export const REPORT_IMAGE_LIMIT = 4;
 
 /** Builds the full client report (every section) for PDF and Markdown export. */
 
@@ -37,7 +41,7 @@ const logisticsMarkdown = (intel: GlobalIntelState) => {
   return `${intel.logistics ?? ''}${alerts}`.trim();
 };
 
-export const buildReportSections = (brand: BrandProfile, intel: GlobalIntelState): PdfSection[] => {
+export const buildReportSections = (brand: BrandProfile, intel: GlobalIntelState, assets: GeneratedAsset[] = []): PdfSection[] => {
   const sections: PdfSection[] = [
     { heading: '1. Client Profile', markdown: profileMarkdown(brand) },
     {
@@ -74,10 +78,21 @@ export const buildReportSections = (brand: BrandProfile, intel: GlobalIntelState
     emptyText: 'No content drafts generated yet.'
   });
 
+  const clientAssets = assets
+    .filter(a => !brand.name || a.clientName.trim().toLowerCase() === brand.name.trim().toLowerCase())
+    .slice(0, REPORT_IMAGE_LIMIT);
+  if (clientAssets.length > 0) {
+    sections.push({
+      heading: '6. Generated Visual Concepts',
+      markdown: '',
+      images: clientAssets.map(a => ({ dataUrl: a.dataUrl, caption: a.prompt, aspectRatio: 16 / 9 }))
+    });
+  }
+
   return sections;
 };
 
-export const buildReportSpec = (brand: BrandProfile, intel: GlobalIntelState): PdfDocumentSpec => ({
+export const buildReportSpec = (brand: BrandProfile, intel: GlobalIntelState, assets: GeneratedAsset[] = []): PdfDocumentSpec => ({
   title: `${brand.name || 'Client'} Strategy Report`,
   subtitle: 'Executive Strategic Briefing',
   metaLines: [
@@ -87,7 +102,7 @@ export const buildReportSpec = (brand: BrandProfile, intel: GlobalIntelState): P
   ],
   author: config.firm.name,
   confidential: true,
-  sections: buildReportSections(brand, intel)
+  sections: buildReportSections(brand, intel, assets)
 });
 
 export const buildReportMarkdown = (brand: BrandProfile, intel: GlobalIntelState): string => {
@@ -104,7 +119,8 @@ export const buildReportMarkdown = (brand: BrandProfile, intel: GlobalIntelState
   const body = spec.sections
     .map(section => {
       const meta = section.meta ? `_${section.meta}_\n\n` : '';
-      const content = section.markdown.trim() || `_${section.emptyText || 'No content.'}_`;
+      const images = (section.images ?? []).map((img, i) => `Image ${i + 1}: ${img.caption || 'generated concept'} (embedded in the PDF export)`).join('\n');
+      const content = section.markdown.trim() || images || `_${section.emptyText || 'No content.'}_`;
       return `## ${section.heading}\n\n${meta}${content}`;
     })
     .join('\n\n---\n\n');

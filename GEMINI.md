@@ -155,4 +155,5 @@ Known sharp edges:
 - `ai.models.generateImages` in `@google/genai` requires an Imagen model ID (`imagen-3.0-generate-002`). Do not pass Gemini model IDs to `generateImages`.
 - PDF export is text-based via `lib/pdf.ts` (jsPDF only). Do not reintroduce `html2canvas`: Tailwind v4 emits `oklch()` colors that html2canvas 1.x cannot parse, so screenshot exports throw. Build documents with `buildPdf`/`savePdf` and the shared `BriefActions` component.
 - All workspace persistence goes through `lib/persistence.ts`. The `global_intel.workspace_meta` jsonb column (added in `supabase_migrations/2026-09-03_workspace_meta.sql`) stores the client library and per-section state; `saveIntelRemote` falls back to the core columns when the column is missing, so keep that fallback intact.
+- Generated images live in IndexedDB via `lib/assets.ts`, never in the localStorage/Supabase workspace blob: a few PNGs would overflow localStorage and break saving for everything else.
 - Surface AI failures through `describeAiError` in `lib/errors.ts` so users get actionable messages instead of raw SDK text.

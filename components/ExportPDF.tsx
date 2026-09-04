@@ -5,14 +5,17 @@ import { BrandProfile, GlobalIntelState } from '../types';
 import { savePdf } from '../lib/pdf';
 import { buildReportMarkdown, buildReportSpec, reportFilename } from '../lib/report';
 import { downloadMarkdown } from '../lib/download';
+import { listAssets } from '../lib/assets';
 
 interface ExportProps {
   brand: BrandProfile;
   intel: GlobalIntelState;
+  /** When set, generated images for this client are embedded in the PDF. */
+  userId?: string;
 }
 
 /** Header control that exports the full client report as PDF or Markdown. */
-const ExportPDF: React.FC<ExportProps> = ({ brand, intel }) => {
+const ExportPDF: React.FC<ExportProps> = ({ brand, intel, userId }) => {
   const [isExporting, setIsExporting] = useState(false);
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -26,12 +29,13 @@ const ExportPDF: React.FC<ExportProps> = ({ brand, intel }) => {
     return () => document.removeEventListener('mousedown', close);
   }, [open]);
 
-  const exportPdf = () => {
+  const exportPdf = async () => {
     setOpen(false);
     setIsExporting(true);
     try {
       const filename = reportFilename(brand, 'pdf');
-      savePdf(buildReportSpec(brand, intel), filename);
+      const assets = userId ? await listAssets(userId) : [];
+      savePdf(buildReportSpec(brand, intel, assets), filename);
       toast.success(`Exported ${filename}`);
     } catch (error) {
       console.error('Failed to export PDF', error);

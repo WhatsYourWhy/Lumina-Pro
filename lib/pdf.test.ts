@@ -113,4 +113,16 @@ describe('buildPdf', () => {
     });
     expect(doc.getNumberOfPages()).toBe(1);
   });
+
+  it('embeds data-URL images with captions and skips unsupported ones', () => {
+    // 1x1 transparent PNG
+    const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+    const doc = buildPdf({
+      title: 'Images',
+      sections: [{ heading: 'Visuals', markdown: '', images: [{ dataUrl: png, caption: 'Slide background' }, { dataUrl: 'data:text/plain;base64,QUJD' }] }]
+    });
+    expect(doc.getNumberOfPages()).toBe(1);
+    const output = doc.output('datauristring');
+    expect(output.startsWith('data:application/pdf')).toBe(true);
+  });
 });

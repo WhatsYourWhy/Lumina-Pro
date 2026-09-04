@@ -27,6 +27,15 @@ export interface PdfSection {
   markdown: string;
   /** Text shown when markdown is empty. */
   emptyText?: string;
+  /** Optional PNG/JPEG data URLs rendered after the markdown, each with a caption. */
+  images?: PdfImage[];
+}
+
+export interface PdfImage {
+  dataUrl: string;
+  caption?: string;
+  /** Width / height. Defaults to 16:9 when unknown. */
+  aspectRatio?: number;
 }
 
 export interface PdfDocumentSpec {
@@ -331,6 +340,27 @@ class Layout {
     this.writeRuns([{ text, bold: !!style.bold, italic: false }], style, x, maxWidth);
   }
 
+  image(image: PdfImage) {
+    const match = /^data:image\/(png|jpe?g);base64,/i.exec(image.dataUrl);
+    if (!match) return;
+    const format = match[1].toLowerCase() === 'png' ? 'PNG' : 'JPEG';
+    const ratio = image.aspectRatio && image.aspectRatio > 0 ? image.aspectRatio : 16 / 9;
+    const width = CONTENT_WIDTH;
+    const height = width / ratio;
+    const captionHeight = image.caption ? 14 : 0;
+    this.ensure(height + captionHeight + 10);
+    try {
+      this.doc.addImage(image.dataUrl, format, MARGIN.left, this.y, width, height);
+      this.y += height + 4;
+      if (image.caption) {
+        this.writeText(image.caption, { size: 8.5, lineHeight: 12, color: COLOR.muted });
+      }
+      this.y += 6;
+    } catch (err) {
+      console.warn('Skipping image that jsPDF could not embed', err);
+    }
+  }
+
   table(rows: string[][]) {
     if (rows.length === 0) return;
     const { doc } = this;
@@ -498,11 +528,13 @@ export const buildPdf = (spec: PdfDocumentSpec): jsPDF => {
     layout.space(2);
 
     const body = (section.markdown || '').trim();
+    const images = section.images ?? [];
     if (body) {
       renderBlocks(layout, markdownToBlocks(body));
-    } else {
+    } else if (images.length === 0) {
       layout.writeText(section.emptyText || 'No content generated for this section yet.', { size: 10, lineHeight: 14.5, color: COLOR.muted });
     }
+    for (const image of images) layout.image(image);
   });
 
   decorateAllPages(doc, spec);
