@@ -44,6 +44,7 @@ import {
   createClientId
 } from './lib/persistence';
 import { downloadJson, safeFilename } from './lib/download';
+import { clearAllAssets } from './lib/assets';
 import type { User } from '@supabase/supabase-js';
 
 const SYNC_DEBOUNCE_MS = 1500;
@@ -60,8 +61,6 @@ const App: React.FC = () => {
   const [globalIntel, setGlobalIntel] = useState<GlobalIntelState>(createEmptyIntel());
   const [clients, setClients] = useState<ClientSnapshot[]>([]);
   const [activeClientId, setActiveClientId] = useState<string | null>(null);
-  // Generated imagery is session-only: it is large and rarely needs to persist.
-  const [studioImage, setStudioImage] = useState<string | null>(null);
 
   const isOfflineUser = user?.id === OFFLINE_USER_ID;
   const storageMode: StorageMode = user && !isOfflineUser && isSupabaseConfigured ? 'cloud' : 'local';
@@ -71,7 +70,6 @@ const App: React.FC = () => {
     setGlobalIntel(createEmptyIntel());
     setClients([]);
     setActiveClientId(null);
-    setStudioImage(null);
     setIsDataLoaded(false);
   }, []);
 
@@ -248,7 +246,6 @@ const App: React.FC = () => {
     setBrand(client.brand);
     setGlobalIntel(client.intel);
     setActiveClientId(client.id);
-    setStudioImage(null);
     toast.success(`Loaded ${client.name}.`);
   };
 
@@ -270,7 +267,6 @@ const App: React.FC = () => {
     setBrand(createEmptyBrand());
     setGlobalIntel(createEmptyIntel());
     setActiveClientId(null);
-    setStudioImage(null);
     setActiveSection(AppSection.STRATEGY);
     toast.success('Fresh workspace ready. Enter the new client name to begin.');
   };
@@ -280,7 +276,6 @@ const App: React.FC = () => {
     setBrand(createEmptyBrand());
     setGlobalIntel(createEmptyIntel());
     setActiveClientId(null);
-    setStudioImage(null);
     setIsSettingsOpen(false);
     setActiveSection(AppSection.OVERVIEW);
     toast.success('Workspace reset.');
@@ -289,6 +284,7 @@ const App: React.FC = () => {
   const clearLocalCache = async () => {
     if (!window.confirm('Clear every copy stored in this browser and sign out? Cloud data is untouched. Offline-only data will be lost unless you exported a backup.')) return;
     const removed = clearAllLocalData();
+    await clearAllAssets();
     setIsSettingsOpen(false);
     toast.success(`Cleared ${removed} local record${removed === 1 ? '' : 's'}.`);
     await handleLogout();
@@ -405,7 +401,7 @@ const App: React.FC = () => {
                 <span className={`text-[10px] font-black uppercase max-w-[160px] truncate ${isActiveClientSaved ? 'text-emerald-500' : 'text-amber-400'}`}>{brand.name}</span>
               </button>
             )}
-            {brand.name && <ExportPDF brand={brand} intel={globalIntel} />}
+            {brand.name && <ExportPDF brand={brand} intel={globalIntel} userId={user.id} />}
             <button onClick={() => setIsSettingsOpen(true)} className="p-2 hover:bg-slate-800 rounded-lg text-slate-400" title="Settings"><Settings size={20} /></button>
             <button onClick={handleLogout} className="text-xs text-slate-400 hover:text-white px-3 py-1.5 rounded-lg border border-slate-800 hover:bg-slate-800 transition-colors">Log Out</button>
           </div>
@@ -446,7 +442,7 @@ const App: React.FC = () => {
               <ContentStudio brand={brand} savedPosts={globalIntel.contentDrafts} setSavedPosts={setContentDrafts} />
             )}
             {activeSection === AppSection.VISUALS && (
-              <VisualStudio brand={brand} image={studioImage} setImage={setStudioImage} />
+              <VisualStudio brand={brand} userId={user.id} />
             )}
             {activeSection === AppSection.MARKET && (
               <MarketInsights brand={brand} intel={globalIntel} onUpdate={patchIntel} />

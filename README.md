@@ -18,7 +18,7 @@ A full-stack AI consulting and logistics workbench for **Shank Strategy Ops LLC*
 
 3. **Creative Asset Studio**
    - **Content Studio** — Generates tone-customized LinkedIn copywriting drafts (Thought Leadership, Technical/Operational, Risk/Mitigation, Visionary). Drafts can be deleted one at a time, cleared, or downloaded together as Markdown.
-   - **Visual Concept Studio** — Generates high-quality branded slide graphics, presentation backgrounds, and logistics mockups using `imagen-3.0-generate-002` with commercial style presets. The last image stays available while you move between sections.
+   - **Visual Concept Studio** — Generates high-quality branded slide graphics, presentation backgrounds, and logistics mockups using `imagen-3.0-generate-002` with commercial style presets. Every generated image lands in a per-browser gallery (IndexedDB, last 24) that survives reloads, filters by client, and can be downloaded or deleted individually. The newest four images for the active client are embedded at the end of the full PDF report.
 
 4. **Client Library** (`Clients` in the sidebar)
    - Save the active client (profile plus every brief, draft, and analysis) to the library, then switch between engagements without losing work. The active client auto-syncs to its library entry as you work.
@@ -99,6 +99,7 @@ Lumina-Pro/
 │   ├── pdf.ts               # Markdown-to-PDF layout engine (jsPDF)
 │   ├── report.ts            # Full client report sections (PDF and Markdown)
 │   ├── download.ts          # Browser file download helpers
+│   ├── assets.ts            # Generated image gallery (IndexedDB with memory fallback)
 │   ├── errors.ts            # Friendly messages for AI / proxy failures
 │   ├── markdown.tsx         # Shared markdown-to-JSX renderer (headings, lists, tables)
 │   ├── api.test.ts          # Tests for API client
