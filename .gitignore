@@ -31,3 +31,11 @@ env/
 .env/
 __pycache__/
 *.pyc
+
+# --- secrets: never commit (added 2026-09-15) ---
+# NOTE: the ".env/" entry above matches a DIRECTORY only, not a .env file.
+.env
+.env.*
+!.env.example
+# agent scratch
+.claude/
