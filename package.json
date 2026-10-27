@@ -44,6 +44,6 @@
     "ts-node-dev": "^2.0.0",
     "typescript": "~5.8.2",
     "vite": "^8.3.5",
-    "vitest": "^5.0.0"
+    "vitest": "^5.0.5"
   }
 }
